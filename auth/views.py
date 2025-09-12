@@ -1,7 +1,7 @@
 import json
 from flask import Blueprint, request
 from config import Config
-from auth.misc import run_auth_flow, drop_user_state, get_userid_by_auth_code, get_auth_url
+from auth.misc import drop_user_state, get_userid_by_auth_code, get_auth_url
 from auth.jwt import check_token_validity, get_jwt_identity, jwt_required
 from user.user import User
 from utils import get_logger
@@ -10,21 +10,6 @@ logger = get_logger(__name__)
 
 
 auth_bp = Blueprint('auth', __name__)
-
-@auth_bp.route('/esia', methods=['GET'])
-def auth_esia():
-    post_data = {
-        "state": request.args.get('state'),
-        "code": request.args.get('code'),
-        "grant_type": "authorization_code",
-        "client_id": Config.ESIA_CLIENT_ID,
-        "client_secret": Config.AUTH_SECRET,
-        "scope": "openid",
-        "redirect_uri": f"{Config.DEV_ROOT}{Config.APP_ROOT}/auth/esia"
-    }
-    res = run_auth_flow(post_data)
-    return res
-
 
 @auth_bp.route('/logout', methods=['GET'])
 @jwt_required

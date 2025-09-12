@@ -28,7 +28,7 @@ class Config():
 
     #TODO: вынести sql-схемы в константы
 
-    PRODUCTION = os.getenv('PRODUCTION') == 'true'
+    TILES_DIR = os.path.dirname(os.path.realpath(__file__)) + '/assets/3dtiles'
     
     ENCRYPT_ALG = "HS256"
     MAX_CONTENT_LENGTH = 4 * 1024 * 1024 * 1024 # 4 GB

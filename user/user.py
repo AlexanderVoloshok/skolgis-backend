@@ -54,6 +54,14 @@ class User():
         return payload['id']
     
 
+    def remove(self):
+        return NotImplementedError()
+    
+
+    def set_role(self):
+        return NotImplementedError()
+    
+
     def exists(self, token: str):
         """
         Проверяет существование пользователя с данным identity

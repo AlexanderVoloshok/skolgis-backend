@@ -1,6 +1,7 @@
 import time
 import os
 import traceback
+import mimetypes
 from flask import Flask, request, send_from_directory, abort, jsonify, send_file
 from flask_cors import CORS
 
@@ -15,9 +16,16 @@ app.config['MAX_CONTENT_LENGTH'] = Config.MAX_CONTENT_LENGTH
 
 logger = get_logger(__name__)
 
-
 from layer.views import layers_bp
 from user.views import user_bp
+
+# правильные MIME-типы
+mimetypes.add_type("application/json", ".json")
+mimetypes.add_type("application/octet-stream", ".b3dm")
+mimetypes.add_type("model/gltf-binary", ".glb")
+mimetypes.add_type("model/gltf+json", ".gltf")
+mimetypes.add_type("application/octet-stream", ".bin")
+
 
 @app.before_request
 def reqbeg():
@@ -73,6 +81,11 @@ def show_attachment(filename: str):
         abort(404)
 
 
+@app.get(f'{Config.APP_ROOT}/3dtiles/<path:path>')
+def tiles(path):
+    return send_from_directory(Config.TILES_DIR, path)
+
+
 @app.route(f'{Config.APP_ROOT}/pptx', methods=['POST'])
 def create_pptx():
     # Проверяем, что файл есть
@@ -97,8 +110,6 @@ app.register_blueprint(user_bp, url_prefix=f'/{Config.APP_ROOT}/user')
 if __name__ == "__main__":
     if not os.path.exists(Config.UPLOAD_FOLDER):
         os.mkdir(Config.UPLOAD_FOLDER)
-    ##if not os.path.exists(Config.UPLOAD_FOLDER + '/sld'):
-    ##    os.mkdir(Config.UPLOAD_FOLDER + '/sld')
     if not os.path.exists(Config.UPLOAD_FOLDER + '/attachments'):
         os.mkdir(Config.UPLOAD_FOLDER + '/attachments')
     app.run(host='0.0.0.0', port=5000, threaded=True)
