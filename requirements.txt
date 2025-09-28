@@ -18,3 +18,4 @@ marshmallow
 uuid
 PyJWT
 python-pptx==1.0.2
+bcrypt==4.3.0

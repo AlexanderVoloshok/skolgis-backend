@@ -49,6 +49,6 @@ def verify_jwt_before_request(request: Request):
 def get_jwt_identity():
     token = request.headers.get("Authorization")
     if token is None:
-        return token
+        return
     decode = jwt.decode(token, Config.SECRET_KEY, algorithms=[Config.ENCRYPT_ALG])
     return decode

@@ -1,7 +1,6 @@
 import json
 from flask import Blueprint, request
-from config import Config
-from auth.misc import drop_user_state, get_userid_by_auth_code, get_auth_url
+from auth.misc import drop_user_state, get_userid_by_auth_code
 from auth.jwt import check_token_validity, get_jwt_identity, jwt_required
 from user.user import User
 from utils import get_logger
@@ -22,20 +21,13 @@ def logout():
 
 @auth_bp.route('/check', methods=['GET'])
 def check_auth():
-    auth_type = request.args.get('auth_type')
     token = request.headers.get('Authorization')
-    auth_url = get_auth_url(auth_type)
-
     token_check = check_token_validity(token)
     if not token_check['valid']:
-        return {"status": "bad", "url": auth_url}
+        return {"status": "bad"}
     user = User(token_check['payload']['id'])
-    permissions = json.loads(user.get_info()['permissions'])
-    logout_url = f"https://{'secure' if auth_type == 'secure' else 'auth'}{Config.ENV_PREFIX}.{Config.AUTH_ROOT}"
     return {
-        "status": "ok" if user.exists(token) and any(permissions.keys()) else "bad",
-        "url": auth_url,
-        "logout_url": logout_url
+        "status": "ok" if user.exists(token) else "bad",
     }
 
 
@@ -45,11 +37,15 @@ def return_userinfo():
     userid = get_userid_by_auth_code(code)
     if not userid:
         return {"status": "bad", "error": "invalid auth code"}
-    drop_user_state(userid, 'auth_code')
     user = User(userid)
     new_token = user.generate_auth_token()
+    userinfo = user.get_info()
     return {
         'status': 'ok',
-        'user_info': user.get_info(),
+        'user_info': {
+            "login": userinfo['login'],
+            "alias": userinfo['alias'],
+            "role": userinfo['role']
+        },
         'access_token': new_token
     }
