@@ -1,8 +1,9 @@
 import os
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, MetaData
+from pathlib import Path
 
-env_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), '.env')
+env_path = Path(__file__).parent.parent / '.env'
 load_dotenv(env_path)
 db = os.getenv('DB')
 host = os.getenv('HOST')
