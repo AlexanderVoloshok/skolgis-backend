@@ -19,8 +19,26 @@ WORKDIR /app
 # Устанавливаем системные зависимости для psycopg2
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
+    libtiff-dev \
+    libgeos-dev \
+    libproj-dev \
+    libsqlite3-dev \
+    libbz2-dev \
+    libffi-dev \
+    zlib1g-dev \
     libpq-dev \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
+
+RUN wget https://download.osgeo.org/gdal/3.2.1/gdal-3.2.1.tar.gz
+RUN tar -xvzf gdal-3.2.1.tar.gz && cd gdal-3.2.1
+RUN cd gdal-3.2.1 && \
+    ./configure --prefix=/usr/local && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig
+RUN gdalinfo --version && \
+    pip3 install pygdal=="`gdal-config --version`.*"
 
 # сначала зависимости, чтобы кешировались
 COPY requirements.txt /app/requirements.txt
@@ -35,4 +53,4 @@ USER appuser
 
 EXPOSE 8000
 
-CMD ["gunicorn", "-w", "3", "-b", "0.0.0.0:8000", "main:app"]
+CMD ["gunicorn", "-w", "3", "-b", "0.0.0.0:8000", "src/main:app"]

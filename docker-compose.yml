@@ -1,9 +1,43 @@
 version: "3.9"
+networks:
+  sklkv:
+    external: true
+    name: sklkv
 services:
   backend:
+    networks:
+      - sklkv
     build: .
     container_name: flask-backend
     ports:
       - "8000:8000"
     restart: unless-stopped
-
+  geoserver:
+    image: kartoza/geoserver:2.20.1
+    container_name: geoserver
+    restart: on-failure
+    networks:
+      - sklkv
+    volumes:
+      - geoserver_data:/opt/geoserver/data_dir
+    ports:
+      - "8081:8080"
+    logging:
+      options:
+        max-size: 10m
+    environment:
+      - GEOSERVER_DATA_DIR=/opt/geoserver/data_dir
+      - GEOWEBCACHE_CACHE_DIR=/opt/geoserver/data_dir/gwc
+      - GEOSERVER_ADMIN_PASSWORD=MEWt4wneYVZy2cPvr3j4
+      - GEOSERVER_ADMIN_USER=skolkovoroot
+      - INITIAL_MEMORY=1G
+      - MAXIMUM_MEMORY=2G
+      - HTTP_PROXY_NAME=${HTTP_PROXY_NAME}
+      - HTTP_SCHEME=https
+    healthcheck:
+      test: curl --fail -s http://localhost:8080/ || exit 1
+      interval: 1m30s
+      timeout: 10s
+      retries: 3
+volumes:
+  geoserver_data: {}

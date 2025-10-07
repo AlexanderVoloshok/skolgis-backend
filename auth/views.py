@@ -33,11 +33,9 @@ def check_auth():
 
 @auth_bp.route('/userinfo', methods=['GET'])
 def return_userinfo():
-    code = request.args.get('code')
-    userid = get_userid_by_auth_code(code)
-    if not userid:
-        return {"status": "bad", "error": "invalid auth code"}
-    user = User(userid)
+    user_id = get_jwt_identity()
+    print('user_id', user_id)
+    user = User(user_id)
     new_token = user.generate_auth_token()
     userinfo = user.get_info()
     return {
