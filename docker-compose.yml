@@ -28,18 +28,21 @@ services:
     environment:
       - GEOSERVER_DATA_DIR=/opt/geoserver/data_dir
       - GEOWEBCACHE_CACHE_DIR=/opt/geoserver/data_dir/gwc
-      - GEOSERVER_ADMIN_PASSWORD=MEWt4wneYVZy2cPvr3j4
       - GEOSERVER_ADMIN_USER=skolkovoroot
+      - GEOSERVER_ADMIN_PASSWORD=MEWt4wneYVZy2cPvr3j4
       - INITIAL_MEMORY=1G
       - MAXIMUM_MEMORY=2G
-      - HTTP_PROXY_NAME=${HTTP_PROXY_NAME}
-      - HTTP_SCHEME=http
+      # убираем ПУСТОЙ HTTP_PROXY_NAME
+      # - HTTP_PROXY_NAME=${HTTP_PROXY_NAME}
+      # фиксируем внешний базовый URL – этого достаточно
       - PROXY_BASE_URL=http://89.223.68.75/geoserver/
+      # (опционально, помогает некоторым сборкам читать PROXY_BASE_URL)
+      - JAVA_OPTS=-DALLOW_ENV_PARAMETRIZATION=true
     healthcheck:
-      test: curl --fail -s http://localhost:8080/ || exit 1
-      interval: 1m30s
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/geoserver/web/"]
+      interval: 40s
       timeout: 10s
-      retries: 3
+      retries: 7
   #nginx:
   #  image: nginx
   #  container_name: skolgis-nginx
