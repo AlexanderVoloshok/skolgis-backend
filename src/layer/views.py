@@ -1,6 +1,7 @@
 import json
-from flask import Blueprint, request
+from flask import Blueprint, request, jsonify
 from .layer import Layer
+from .files import attatch_file, remove_file
 from user.user import User
 from config import Config
 from validation import FeaturesSchema, valid_id, valid_file, validation_chain
@@ -75,7 +76,7 @@ def export_layer(layer_name: str):
 
 @layers_bp.route('/<layer_name>/edit', methods=['POST'])
 @validation_chain([valid_id])
-def edit_layer(layer_name: str):    
+def edit_layer(layer_name: str):
     data = json.loads(request.data)
     layer = Layer(layer_name)
     return layer.set_feature_attrs(data)
@@ -94,3 +95,28 @@ def delete_feature(layer_name: str):
     data = json.loads(request.data)
     layer = Layer(layer_name)
     return layer.delete_feature(data['id'])
+
+
+@layers_bp.route('/<layer_name>/<fid>/file/attatch', methods=['POST'])
+@validation_chain([valid_file, valid_id])
+def attatch_file(layer_name: str, fid: int):
+    files = json.loads(request.data)
+    # проверяем, нет ли уже файла с таким именем
+    #сохраняем файл на  диск
+    #добавляем имя файла в бд
+
+    attachments = []
+    for f in files:
+        if not f.filename:
+            continue
+        file = attatch_file(layer_name, fid, f)
+        attachments.append(file)
+
+    return jsonify(attachments), 201
+
+
+@layers_bp.route('/<layer_name>/<fid>/file/<filename>/remove', methods=['POST'])
+@validation_chain([valid_file, valid_id])
+def remove_attatchment(layer_name: str, fid: int, filename: str):
+    result = remove_file(layer_name, fid, filename)
+    return result, 201

@@ -1,23 +1,23 @@
-version: "3.9"
-networks:
-  sklkv:
-    external: true
-    name: sklkv
+version: "1"
+#networks:
+#  sklkv:
+#    external: true
+#    name: sklkv
 services:
   backend:
-    networks:
-      - sklkv
+    #networks:
+    #  - sklkv
     build: .
-    container_name: flask-backend
+    container_name: skolgis-backend
     ports:
-      - "8000:8000"
-    restart: unless-stopped
+      - "5000:5000"
+    restart: on-failure
   geoserver:
     image: kartoza/geoserver:2.20.1
     container_name: geoserver
     restart: on-failure
-    networks:
-      - sklkv
+    #networks:
+    #  - sklkv
     volumes:
       - geoserver_data:/opt/geoserver/data_dir
     ports:
@@ -39,5 +39,16 @@ services:
       interval: 1m30s
       timeout: 10s
       retries: 3
+  nginx:
+    image: nginx
+    container_name: skolgis-nginx
+    restart: on-failure
+    networks:
+      - cnstr
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/nginx.conf
+      - ./nginx/locations.conf:/etc/nginx/conf.d/locations/locations.conf
+    ports:
+      - "4300:4300"
 volumes:
   geoserver_data: {}

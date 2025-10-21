@@ -81,9 +81,9 @@ def show_attachment(filename: str):
         abort(404)
 
 
-@app.get(f'{Config.APP_ROOT}/3dtiles/<path:path>')
-def tiles(path):
-    return send_from_directory(Config.TILES_DIR, path)
+#@app.get(f'{Config.APP_ROOT}/3dtiles/<path:path>')
+#def tiles(path):
+#    return send_from_directory(Config.TILES_DIR, path)
 
 
 @app.route(f'{Config.APP_ROOT}/pptx', methods=['POST'])

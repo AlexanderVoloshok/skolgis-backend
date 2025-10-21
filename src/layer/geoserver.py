@@ -2,6 +2,9 @@ import os, re
 import requests
 from requests.auth import HTTPBasicAuth
 from geo.Geoserver import Geoserver, GeoserverException
+from xml.etree.ElementTree import Element, SubElement, tostring
+from xml.dom import minidom
+from typing import Any, Dict, Optional, Tuple
 from config import Config
 from utils import get_logger
 
@@ -9,108 +12,9 @@ logger = get_logger(__name__)
 
 geo = Geoserver(Config.GEOSERVER_ROOT, username=Config.GEOSERVER_USER, password=Config.GEOSERVER_PWD)
 
-
-def convert_svg_to_css(sld_content: str):
-    # Replace `se:SvgParameter` with `CssParameter`
-    sld_content = re.sub(r"<se:SvgParameter", "<CssParameter", sld_content)
-    sld_content = re.sub(r"</se:SvgParameter>", "</CssParameter>", sld_content)
-    return sld_content
-
-
-def hex_to_opacity(hex_color: str) -> float:
-    """
-    Преобразует прозрачность из HEX-цвета в значение от 0 до 1.
-    :param hex_color: Цвет в формате HEX (например, #RRGGBBAA).
-    :return: Прозрачность в виде числа от 0 до 1.
-    """
-    if len(hex_color) == 9:  # Формат #RRGGBBAA
-        alpha_hex = hex_color[-2:]  # Последние 2 символа — это прозрачность
-        alpha_int = int(alpha_hex, 16)  # Преобразуем в десятичное число
-        return alpha_int / 255  # Нормализуем в диапазон [0, 1]
-    elif len(hex_color) == 7:  # Формат #RRGGBB (без прозрачности)
-        return 1.0  # Полностью непрозрачно
-    else:
-        raise ValueError("Некорректный формат HEX-цвета. Используйте #RRGGBB или #RRGGBBAA.")
-    
-
-def create_sld(geometry_type: str, style: dict):
-    """
-    Создает SLD-файл для Geoserver слоя.
-    """
-    if geometry_type not in ["POINT", "LINESTRING", "MULTILINESTRING", "POLYGON", "MULTIPOLYGON"]:
-        raise ValueError("Недопустимый тип геометрии. Выберите из 'point', 'line', 'polygon'.")
-
-    outline_width, outline_color = style['outlineWidth'], style['outlineColor']
-    outline_color = outline_color[:-2] if len(outline_color) == 9 else outline_color
-    stroke_opacity = hex_to_opacity(outline_color)
-    if geometry_type not in ("LINESTRING", "MULTILINESTRING"):
-        fill_color = style['fillColor'][:-2] if len(style['fillColor']) == 9 else style['fillColor']
-        fill_opacity = hex_to_opacity(style['fillColor'])
-
-    if geometry_type == "POINT":
-        symbolizer = f"""
-            <PointSymbolizer>
-                <Graphic>
-                    <Mark>
-                        <WellKnownName>circle</WellKnownName>
-                        <Fill>
-                            <CssParameter name="fill">{fill_color}</CssParameter>
-                        </Fill>
-                        <Stroke>
-                            <CssParameter name="stroke">{outline_color}</CssParameter>
-                            <CssParameter name="stroke-width">{outline_width}</CssParameter>
-                        </Stroke>
-                    </Mark>
-                    <Size>10</Size>
-                </Graphic>
-            </PointSymbolizer>
-        """
-    elif geometry_type in ("LINESTRING", "MULTILINESTRING"):
-        symbolizer = f"""
-            <LineSymbolizer>
-                <Stroke>
-                    <CssParameter name="stroke">{outline_color}</CssParameter>
-                    <CssParameter name="stroke-width">{outline_width}</CssParameter>
-                    <CssParameter name="stroke-opacity">{stroke_opacity}</CssParameter>
-                </Stroke>
-            </LineSymbolizer>
-        """
-    elif geometry_type in  ("POLYGON", "MULTIPOLYGON"):
-        symbolizer = f"""
-            <PolygonSymbolizer>
-                <Fill>
-                    <CssParameter name="fill">{fill_color}</CssParameter>
-                    <CssParameter name="fill-opacity">{fill_opacity}</CssParameter>
-                </Fill>
-                <Stroke>
-                    <CssParameter name="stroke">{outline_color}</CssParameter>
-                    <CssParameter name="stroke-width">{outline_width}</CssParameter>
-                    <CssParameter name="stroke-opacity">{stroke_opacity}</CssParameter>
-                </Stroke>
-            </PolygonSymbolizer>
-        """
-
-    sld_template = """<?xml version="1.0" encoding="UTF-8"?>
-    <StyledLayerDescriptor version="1.0.0" xmlns="http://www.opengis.net/sld" xmlns:ogc="http://www.opengis.net/ogc" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.opengis.net/sld http://schemas.opengis.net/sld/1.0.0/StyledLayerDescriptor.xsd">
-        <NamedLayer>
-            <Name>Simple Style</Name>
-            <UserStyle>
-                <Title>Default Style</Title>
-                <Abstract>A simple default style</Abstract>
-                <FeatureTypeStyle>
-                    <Rule>
-                        <Name>Default Rule</Name>
-                        <Title>Default</Title>
-                        {symbolizer}
-                    </Rule>
-                </FeatureTypeStyle>
-            </UserStyle>
-        </NamedLayer>
-    </StyledLayerDescriptor>
-    """
-
-    return sld_template.format(symbolizer=symbolizer)
-
+NS_SLD = "http://www.opengis.net/sld"
+NS_OGC = "http://www.opengis.net/ogc"
+NS_GML = "http://www.opengis.net/gml"
 
 def publish_on_geoserver(table_name: str):
     """Публикует слой на Geoserver
@@ -192,3 +96,257 @@ def delete_geoserver_style(style_name: str):
     except GeoserverException as e:
         result = {"status": "bad", "error": "failed to delete layer from geoserver"}
     return result
+
+
+def build_sld(style_dict: Dict[str, Any], layer_name: str, style_name: str = "autogenerated") -> str:
+    """
+    Преобразует твой словарь стиля в SLD 1.0.0 (как строку XML).
+    Поддержка:
+      - singleSymbol
+      - categorizedSymbol (category rules с attribute/value/label; value=null → PropertyIsNull)
+      - graduatedSymbol (range rules с lower/upper)
+      - geometry: polygon|line|point (влияет на Symbolizer)
+    """
+    # корневой SLD
+    sld = Element(f"{{{NS_SLD}}}StyledLayerDescriptor", {
+        "version": "1.0.0",
+        "xmlns": NS_SLD,
+        "xmlns:ogc": NS_OGC,
+        "xmlns:gml": NS_GML
+    })
+    named = SubElement(sld, f"{{{NS_SLD}}}NamedLayer")
+    lname = SubElement(named, f"{{{NS_SLD}}}Name"); lname.text = layer_name
+
+    ustyle = SubElement(named, f"{{{NS_SLD}}}UserStyle")
+    sname = SubElement(ustyle, f"{{{NS_SLD}}}Name"); sname.text = style_name
+    s_title = SubElement(ustyle, f"{{{NS_SLD}}}Title"); s_title.text = f"{style_name} for {layer_name}"
+
+    fts = SubElement(ustyle, f"{{{NS_SLD}}}FeatureTypeStyle")
+
+    rt = style_dict.get("renderer_type")
+    rules = style_dict.get("rules") or []
+
+    if rt == "singleSymbol":
+        st = rules[0]["style"] if rules and "style" in rules[0] else {}
+        _rule_with_filter(fts, "Все объекты", None, st.get("geometry", "polygon"), st)
+        return _pretty_xml(sld)
+
+    if rt == "categorizedSymbol":
+        # вытащим имя атрибута из первого встречного правила
+        attr = None
+        for r in rules:
+            if r.get("attribute"):
+                attr = r["attribute"]
+                break
+
+        for r in rules:
+            if r.get("type") != "category":
+                continue
+            val = r.get("value")
+            label = r.get("label") or ("" if val is None else str(val))
+            st = r.get("style") or {}
+            if attr:
+                if val is None or val == "":
+                    filt = _filter_null(attr)
+                else:
+                    filt = _filter_eq(attr, val)
+            else:
+                filt = None  # если не прислали attribute, то правило без фильтра (редкий кейс)
+            _rule_with_filter(fts, label, filt, st.get("geometry", "polygon"), st)
+
+        return _pretty_xml(sld)
+
+    if rt == "graduatedSymbol":
+        # нижняя/верхняя границы + один attribute на все
+        attr = None
+        for r in rules:
+            if r.get("attribute"):
+                attr = r["attribute"]
+                break
+        for r in rules:
+            if r.get("type") != "range":
+                continue
+            lower = float(r.get("lower"))
+            upper = float(r.get("upper"))
+            label = r.get("label") or f"{lower} – {upper}"
+            st = r.get("style") or {}
+            filt = _filter_between(attr, lower, upper) if attr else None
+            _rule_with_filter(fts, label, filt, st.get("geometry", "polygon"), st)
+
+        return _pretty_xml(sld)
+
+    # неизвестный renderer → один дефолтный полигон
+    _rule_with_filter(fts, "Все объекты", None, "polygon", {})
+    return _pretty_xml(sld)
+
+
+def convert_svg_to_css(sld_content: str):
+    # Replace `se:SvgParameter` with `CssParameter`
+    sld_content = re.sub(r"<se:SvgParameter", "<CssParameter", sld_content)
+    sld_content = re.sub(r"</se:SvgParameter>", "</CssParameter>", sld_content)
+    return sld_content
+
+
+def _rgba_to_hex_opacity(rgba: str) -> Tuple[str, str]:
+    """
+    'rgba(226,215,250,1.000)' -> ('#E2D7FA', '1.0')
+    'rgba(35,35,35,1.000)'   -> ('#232323', '1.0')
+    Если передан #hex или rgb(), пытаемся разобрать; иначе возвращаем как есть + '1.0'
+    """
+    if not rgba:
+        return ("#000000", "1.0")
+    rgba = rgba.strip()
+    m = re.match(r'rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)', rgba, re.I)
+    if m:
+        r, g, b, a = map(str, m.groups())
+        return (f"#{int(r):02X}{int(g):02X}{int(b):02X}", str(float(a)))
+    m2 = re.match(r'rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)', rgba, re.I)
+    if m2:
+        r, g, b = map(int, m2.groups())
+        return (f"#{r:02X}{g:02X}{b:02X}", "1.0")
+    if rgba.startswith("#") and (len(rgba) in (4, 7)):
+        return (rgba, "1.0")
+    # fallback
+    return (rgba, "1.0")
+
+def _width_from_style(stroke: Dict[str, Any]) -> float:
+    if not stroke:
+        return 1.0
+    if "width_px" in stroke:
+        return float(stroke["width_px"])
+    if "width" in stroke:
+        return float(stroke["width"])
+    return 1.0
+
+def _dasharray_from_line_style(style_int: Optional[int]) -> Optional[str]:
+    """
+    Qt-like: 1=SolidLine, 2=DashLine, 3=DotLine, 4=DashDotLine, 5=DashDotDotLine
+    Возвращаем строку для <CssParameter name="stroke-dasharray">.
+    """
+    if style_int is None:
+        return None
+    return {
+        1: None,
+        2: "6 6",
+        3: "2 6",
+        4: "6 6 2 6",
+        5: "6 6 2 6 2 6"
+    }.get(int(style_int), None)
+
+def _pretty_xml(elem: Element) -> str:
+    rough = tostring(elem, encoding="utf-8")
+    return minidom.parseString(rough).toprettyxml(indent="  ", encoding="utf-8").decode("utf-8")
+
+def _css_param(parent: Element, name: str, value: str):
+    p = SubElement(parent, f"{{{NS_SLD}}}CssParameter", {"name": name})
+    p.text = value
+    return p
+
+def _polygon_symbolizer(parent: Element, style: Dict[str, Any]):
+    poly = SubElement(parent, f"{{{NS_SLD}}}PolygonSymbolizer")
+    fill = style.get("fill", {})
+    stroke = style.get("stroke", {})
+    opacity = str(style.get("opacity", "")) or None
+
+    # Fill
+    if fill:
+        fill_el = SubElement(poly, f"{{{NS_SLD}}}Fill")
+        color_hex, alpha = _rgba_to_hex_opacity(fill.get("color", "rgba(158,158,158,0.25)"))
+        _css_param(fill_el, "fill", color_hex)
+        _css_param(fill_el, "fill-opacity", opacity or alpha)
+
+    # Stroke
+    if stroke:
+        stroke_el = SubElement(poly, f"{{{NS_SLD}}}Stroke")
+        color_hex, alpha = _rgba_to_hex_opacity(stroke.get("color", "rgba(97,97,97,0.9)"))
+        _css_param(stroke_el, "stroke", color_hex)
+        _css_param(stroke_el, "stroke-width", str(_width_from_style(stroke)))
+        dash = _dasharray_from_line_style(stroke.get("line_style"))
+        if dash:
+            _css_param(stroke_el, "stroke-dasharray", dash)
+        # прозрачноcть для stroke — если явно задана opacity в корне стиля — используем её, иначе alpha из rgba
+        _css_param(stroke_el, "stroke-opacity", opacity or alpha)
+
+def _line_symbolizer(parent: Element, style: Dict[str, Any]):
+    line = SubElement(parent, f"{{{NS_SLD}}}LineSymbolizer")
+    stroke = style.get("stroke", {}) or {}
+    stroke_el = SubElement(line, f"{{{NS_SLD}}}Stroke")
+    color_hex, alpha = _rgba_to_hex_opacity(stroke.get("color", "rgba(96,125,139,1)"))
+    _css_param(stroke_el, "stroke", color_hex)
+    _css_param(stroke_el, "stroke-width", str(_width_from_style(stroke)))
+    dash = _dasharray_from_line_style(stroke.get("line_style"))
+    if dash:
+        _css_param(stroke_el, "stroke-dasharray", dash)
+    _css_param(stroke_el, "stroke-opacity", alpha)
+
+def _point_symbolizer(parent: Element, style: Dict[str, Any]):
+    """
+    Рисуем простой круг через WellKnownName=circle.
+    Если в словаре есть markerSize/radius/markerFill/markerStroke — учитываем.
+    """
+    pt = SubElement(parent, f"{{{NS_SLD}}}PointSymbolizer")
+    graphic = SubElement(pt, f"{{{NS_SLD}}}Graphic")
+    mark = SubElement(graphic, f"{{{NS_SLD}}}Mark")
+    name = SubElement(mark, f"{{{NS_SLD}}}WellKnownName"); name.text = "circle"
+
+    # fill
+    fill_in = style.get("markerFill") or style.get("fill", {})
+    if fill_in:
+        fill_el = SubElement(mark, f"{{{NS_SLD}}}Fill")
+        color_hex, alpha = _rgba_to_hex_opacity(fill_in.get("color", "rgba(33,150,243,0.6)"))
+        _css_param(fill_el, "fill", color_hex)
+        _css_param(fill_el, "fill-opacity", alpha)
+
+    # stroke
+    stroke_in = style.get("markerStroke") or style.get("stroke", {})
+    if stroke_in:
+        stroke_el = SubElement(mark, f"{{{NS_SLD}}}Stroke")
+        color_hex, alpha = _rgba_to_hex_opacity(stroke_in.get("color", "rgba(255,255,255,0.9)"))
+        _css_param(stroke_el, "stroke", color_hex)
+        _css_param(stroke_el, "stroke-width", str(_width_from_style(stroke_in)))
+        dash = _dasharray_from_line_style(stroke_in.get("line_style"))
+        if dash:
+            _css_param(stroke_el, "stroke-dasharray", dash)
+        _css_param(stroke_el, "stroke-opacity", alpha)
+
+    # size
+    size = style.get("markerSize") or style.get("radius") or 5
+    size_el = SubElement(graphic, f"{{{NS_SLD}}}Size"); size_el.text = str(size)
+
+def _symbolizer_by_geom(parent: Element, geom: str, style: Dict[str, Any]):
+    g = (geom or "polygon").lower()
+    if "point" in g:
+        _point_symbolizer(parent, style)
+    elif "line" in g:
+        _line_symbolizer(parent, style)
+    else:
+        _polygon_symbolizer(parent, style)
+
+def _rule_with_filter(parent: Element, label: str, filter_el: Optional[Element], geom: str, style: Dict[str, Any]):
+    rule = SubElement(parent, f"{{{NS_SLD}}}Rule")
+    title = SubElement(rule, f"{{{NS_SLD}}}Title"); title.text = label
+    if filter_el is not None:
+        rule.append(filter_el)
+    _symbolizer_by_geom(rule, style.get("geometry", "polygon"), style)
+
+def _filter_eq(attribute: str, value: Any) -> Element:
+    f = Element(f"{{{NS_OGC}}}Filter")
+    comp = SubElement(f, f"{{{NS_OGC}}}PropertyIsEqualTo")
+    prop = SubElement(comp, f"{{{NS_OGC}}}PropertyName"); prop.text = attribute
+    lit = SubElement(comp, f"{{{NS_OGC}}}Literal"); lit.text = "" if value is None else str(value)
+    return f
+
+def _filter_null(attribute: str) -> Element:
+    f = Element(f"{{{NS_OGC}}}Filter")
+    isnull = SubElement(f, f"{{{NS_OGC}}}PropertyIsNull")
+    prop = SubElement(isnull, f"{{{NS_OGC}}}PropertyName"); prop.text = attribute
+    return f
+
+def _filter_between(attribute: str, lower: float, upper: float) -> Element:
+    f = Element(f"{{{NS_OGC}}}Filter")
+    between = SubElement(f, f"{{{NS_OGC}}}PropertyIsBetween")
+    prop = SubElement(between, f"{{{NS_OGC}}}PropertyName"); prop.text = attribute
+    lowerb = SubElement(between, f"{{{NS_OGC}}}LowerBoundary")
+    SubElement(lowerb, f"{{{NS_OGC}}}Literal").text = str(lower)
+    upperb = SubElement(between, f"{{{NS_OGC}}}UpperBoundary")
+    SubElement(upperb, f"{{{NS_OGC}}}Literal").text = str(upper)

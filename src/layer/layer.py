@@ -6,12 +6,13 @@ from datetime import datetime, time, date
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename, safe_join
 from typing import Union
-from sqlalchemy import select, text, exc
+from sqlalchemy import select, text, exc, sql, func, literal
 from geoalchemy2.shape import from_shape
 from geoalchemy2 import Geometry
 from config import Config, ENGINE, MAIN_META, LAYERS_META
 from geom_utils import parse_geometry, reproject_to_wgs, get_geom_type, enforce_geom_type
 from sql_utils import read_sql, read_postgis, execute_sql_query, execute_sql_and_commit
+from layer.utils import parse_filters, parse_order, build_where
 from layer.kml import parse_kml
 import consts
 from utils import get_logger
@@ -24,6 +25,8 @@ fiona.drvsupport.supported_drivers['KML'] = 'rw'
 fiona.drvsupport.supported_drivers['libkml'] = 'rw'
 fiona.drvsupport.supported_drivers['LIBKML'] = 'rw'
 
+DEFAULT_FEATURES_LIMIT = 20
+MAX_FEATURES_LIMIT = 1000
 
 class LayerNotExistException(Exception):
     pass
@@ -55,38 +58,44 @@ class Layer():
             json: 
         """
 
-        limit = options.get('limit')
-        offset = options.get('offset')
-        filterField = options.get('filter')
-        filterValue = str(options.get('filterValue'))
-        order = options.get('orderBy')
+        filters_raw = options.get("filters")
+        limit_raw = options.get("limit", type=int)
+        offset_raw = options.get("offset", type=int)
+        order_raw = options.get("order")
 
-        calc_area = ', round((ST_Area(ST_Transform(ST_MakeValid(geom), 4326)::geography)/ 10000)::numeric,  3) as calc_area'
-        query = f"SELECT * {calc_area if self.geom_type in ('POLYGON', 'MULTIPOLYGON') else ''} FROM skolkovo_layers.{self.name}"
-        limitation = ""
-
-        if filterField == 'calc_area':
-            if filterValue != '':
-                query += f" WHERE round((ST_Area(ST_Transform(ST_MakeValid(geom), 4326)::geography)/ 10000)::numeric,  3) = {filterValue}"
-        else:
-            query += self._get_where_condition(filterField, filterValue)
+        CALC_AREA_COL = sql.literal_column(
+            "round((ST_Area(ST_Transform(ST_MakeValid(geom), 4326)::geography)/ 10000)::numeric, 3)"
+        ).label("calc_area")
         
-        if order is not None:
-            query += f" ORDER BY {order} {'DESC' if options.get('orderFn') == 'descend' else 'ASC'}"
-        if limit is not None:
-            limitation += f" LIMIT {limit}"
-        if offset is not None:
-            limitation += f" OFFSET {offset}"
+        rules = parse_filters(filters_raw)
+        where_expr = build_where(rules)
 
-        features = read_postgis(query + limitation)
+        limit = DEFAULT_FEATURES_LIMIT if not limit_raw or limit_raw <= 0 else min(limit_raw, MAX_FEATURES_LIMIT)
+        offset = 0 if not offset_raw or offset_raw < 0 else offset_raw
+
+        order_items = parse_order(order_raw)
+
+        # Основные колонки + calc_area.
+        select_cols = [self.layer_table.c[name] for name in self.columns.keys() if name in self.layer_table.c]
+        select_cols.append(CALC_AREA_COL)
+
+        stmt = select(*select_cols).where(where_expr)
+        for name, direction in order_items:
+            col = self.layer_table.c[name]
+            stmt = stmt.order_by(col.desc() if direction == "desc" else col.asc())
+        stmt = stmt.limit(limit).offset(offset)
+
+        # Отдельно total (с тем же WHERE)
+        count_stmt = select(func.count(literal(1))).select_from(self.layer_table).where(where_expr)
+
+        total = execute_sql_query(count_stmt).scalar_one()
+
+        # Компилируем SELECT в строку с ЛИТЕРАЛИЗОВАННЫМИ значениями (безопасно: всё биндилось SQLAlchemy)
+        features = read_postgis(stmt)
+
         result = json.loads(features.to_json(default=str))
-
-        q = text(f'SELECT COUNT(*) FROM skolkovo_layers.{self.name}')
-        q1 = text(f'SELECT COUNT(*) FROM ({query})a')
-        res = execute_sql_query(q)
-        res1 = execute_sql_query(q1)
-        result['total'] = res.fetchone()[0]
-        result['filtered'] = res1.fetchone()[0]
+        result["total"] = int(total)
+        result['filtered'] = len(features)
 
         return result
        

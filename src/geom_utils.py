@@ -1,6 +1,3 @@
-import json
-import pandas as pd
-import geopandas as gpd
 from pyproj import CRS, Transformer
 from shapely.geometry import Polygon, MultiPolygon, MultiLineString, Point
 from shapely.ops import transform
