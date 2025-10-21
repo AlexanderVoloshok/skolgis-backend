@@ -39,16 +39,16 @@ services:
       interval: 1m30s
       timeout: 10s
       retries: 3
-  nginx:
-    image: nginx
-    container_name: skolgis-nginx
-    restart: on-failure
-    networks:
-      - sklkv
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/nginx.conf
-      - ./nginx/locations.conf:/etc/nginx/conf.d/locations/locations.conf
-    ports:
-      - "4300:4300"
+  #nginx:
+  #  image: nginx
+  #  container_name: skolgis-nginx
+  #  restart: on-failure
+  #  networks:
+  #    - sklkv
+  #  volumes:
+  #    - ./nginx/nginx.conf:/etc/nginx/conf.d/nginx.conf
+  #    - ./nginx/locations.conf:/etc/nginx/conf.d/locations/locations.conf
+  #  ports:
+  #    - "4300:4300"
 volumes:
   geoserver_data: {}
