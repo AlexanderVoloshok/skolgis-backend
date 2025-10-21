@@ -1,12 +1,12 @@
 version: "1"
-networks:
-  sklkv:
-    external: true
-    name: sklkv
+#networks:
+#  sklkv:
+#    external: true
+#    name: sklkv
 services:
   backend:
-    networks:
-      - sklkv
+    #networks:
+    #  - sklkv
     build: .
     container_name: skolgis-backend
     ports:
@@ -16,8 +16,8 @@ services:
     image: kartoza/geoserver:2.20.1
     container_name: geoserver
     restart: on-failure
-    networks:
-      - sklkv
+    #networks:
+    #  - sklkv
     volumes:
       - geoserver_data:/opt/geoserver/data_dir
     ports:
@@ -36,8 +36,12 @@ services:
       # - HTTP_PROXY_NAME=${HTTP_PROXY_NAME}
       # фиксируем внешний базовый URL – этого достаточно
       - PROXY_BASE_URL=http://89.223.68.75/geoserver/
-      # (опционально, помогает некоторым сборкам читать PROXY_BASE_URL)
-      - JAVA_OPTS=-DALLOW_ENV_PARAMETRIZATION=true
+      # с 4 ГБ RAM:
+      - INITIAL_MEMORY=512m        # Xms
+      - MAXIMUM_MEMORY=1536m       # Xmx ~ 1.5 ГБ (можно 2г, но оставь запас системе и другим контейнерам)
+      # на случай если образ читает именно эти флаги:
+      - JAVA_OPTS=-Xms512m -Xmx1536m -XX:+UseG1GC
+      - GEOSERVER_JAVA_OPTS=-Xms512m -Xmx1536m -XX:+UseG1GC
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/geoserver/web/"]
       interval: 40s
