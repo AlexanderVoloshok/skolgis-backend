@@ -5,9 +5,9 @@ import mimetypes
 from flask import Flask, request, send_from_directory, abort, jsonify, send_file
 from flask_cors import CORS
 
-from presentation import pptx_from_image
-from config import Config
-from utils import get_logger
+from src.presentation import pptx_from_image
+from src.config import Config
+from src.utils import get_logger
 
 app = Flask(__name__)
 cors = CORS(app, supports_credentials=True)
@@ -16,8 +16,8 @@ app.config['MAX_CONTENT_LENGTH'] = Config.MAX_CONTENT_LENGTH
 
 logger = get_logger(__name__)
 
-from layer.views import layers_bp
-from user.views import user_bp
+from src.layer.views import layers_bp
+from src.user.views import user_bp
 
 # правильные MIME-типы
 mimetypes.add_type("application/json", ".json")
