@@ -3,13 +3,13 @@ from datetime import timedelta
 from flask import jsonify
 from sqlalchemy import text, delete, update
 from sqlalchemy.dialects.postgresql import insert
-from config import MAIN_META
-from consts import UserRoles
-from user.utils import jsonb_set_stmt
-from auth.misc import password_hash_json, invite_payload_json
-from auth.jwt import create_access_token
-from sql_utils import read_sql, execute_sql_and_commit
-from utils import get_logger
+from src.config import MAIN_META
+from src.consts import UserRoles
+from src.user.utils import jsonb_set_stmt
+from src.auth.misc import password_hash_json, invite_payload_json
+from src.auth.jwt import create_access_token
+from src.sql_utils import read_sql, execute_sql_and_commit
+from src.utils import get_logger
 
 logger = get_logger(__name__)
 

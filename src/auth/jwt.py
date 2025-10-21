@@ -2,8 +2,8 @@ import jwt
 from datetime import datetime, timezone, timedelta
 from flask import request, jsonify, Request
 from jwt import ExpiredSignatureError, InvalidTokenError
-from config import Config
-from consts import UserRoles
+from src.config import Config
+from src.consts import UserRoles
 
 
 def create_access_token(identity, role: UserRoles, expires_delta=timedelta(1*3600*24)):

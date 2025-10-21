@@ -2,9 +2,9 @@ import json
 from flask import Blueprint, request, jsonify
 from .layer import Layer
 from .files import attatch_file, remove_file
-from user.user import User
-from config import Config
-from validation import FeaturesSchema, valid_id, valid_file, validation_chain
+from src.user.user import User
+from src.config import Config
+from src.validation import FeaturesSchema, valid_id, valid_file, validation_chain
 
 
 layers_bp = Blueprint('layer', __name__)

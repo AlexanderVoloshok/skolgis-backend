@@ -1,7 +1,7 @@
 from pyproj import CRS, Transformer
 from shapely.geometry import Polygon, MultiPolygon, MultiLineString, Point
 from shapely.ops import transform
-from sql_utils import read_sql
+from src.sql_utils import read_sql
 
 project_3857 = CRS("EPSG:3857")
 project_4326 = CRS("EPSG:4326")

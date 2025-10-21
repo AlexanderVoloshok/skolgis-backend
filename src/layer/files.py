@@ -3,8 +3,8 @@ import uuid
 import mimetypes
 from werkzeug.utils import secure_filename
 from pathlib import Path
-from config import Config, MAIN_META
-from sql_utils import execute_sql_and_commit
+from src.config import Config, MAIN_META
+from src.sql_utils import execute_sql_and_commit
 
 files_table = MAIN_META.tables['skolkovo_general.file_attachments'] 
 

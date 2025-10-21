@@ -6,7 +6,7 @@ from marshmallow import Schema, fields
 from marshmallow.validate import Range, Length, OneOf
 from marshmallow.exceptions import ValidationError
 
-from config import Config
+from src.config import Config
 
     
 def validate_digits(value):

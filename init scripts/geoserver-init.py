@@ -1,5 +1,5 @@
-from config import db, host, port, user, pw
-from layer.geoserver import geo
+from src.config import db, host, port, user, pw
+from src.layer.geoserver import geo
 from geo.Geoserver import GeoserverException
 from utils import get_logger
 

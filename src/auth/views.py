@@ -1,9 +1,8 @@
-import json
 from flask import Blueprint, request
-from auth.misc import drop_user_state, get_userid_by_auth_code
-from auth.jwt import check_token_validity, get_jwt_identity, jwt_required
-from user.user import User
-from utils import get_logger
+from src.auth.misc import drop_user_state
+from src.auth.jwt import check_token_validity, get_jwt_identity, jwt_required
+from src.user.user import User
+from src.utils import get_logger
 
 logger = get_logger(__name__)
 

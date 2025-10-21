@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Optional
 
 from sqlalchemy import and_, or_, not_, true, false
 from sqlalchemy.sql.expression import BinaryExpression
@@ -84,7 +84,7 @@ def build_where(rules: List[Dict[str, Any]]) -> BinaryExpression:
 
     return and_(*clauses) if clauses else true()
 
-def parse_order(raw: str | None) -> List[Tuple[str, str]]:
+def parse_order(raw: Optional[str]) -> List[Tuple[str, str]]:
     if not raw:
         return []
     out: List[Tuple[str, str]] = []

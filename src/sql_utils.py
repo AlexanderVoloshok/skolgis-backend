@@ -1,7 +1,8 @@
 import pandas as pd
 import geopandas as gpd
+import typing as ty
 from sqlalchemy import text, Select
-from config import ENGINE
+from src.config import ENGINE
 
 def read_sql(query: str, params: tuple = ()):
     with ENGINE.connect() as conn:
@@ -15,7 +16,7 @@ def read_sql(query: str, params: tuple = ()):
                 conn.close()
 
 
-def read_postgis(query: str | Select, params: tuple = (), **kwargs):
+def read_postgis(query: ty.Union[str, Select], params: tuple = (), **kwargs):
     geom_col = kwargs.get('geom_col', 'geom')
     sql_text = text(query) if isinstance(query, str) else query.compile(ENGINE, compile_kwargs={"literal_binds": True}).string
 

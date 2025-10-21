@@ -1,6 +1,6 @@
+from typing import List
 
-
-def jsonb_set_stmt(field_path: list[str], value_json: str):
+def jsonb_set_stmt(field_path: List[str], value_json: str):
     """
     Возвращает SQL-фрагмент jsonb_set(state::jsonb, '{a,b}', '<json>', true).
     value_json должен быть валидным JSON (кавычки и т.п. уже расставлены).

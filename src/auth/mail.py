@@ -1,6 +1,6 @@
 import smtplib
 from email.message import EmailMessage
-from config import Config
+from src.config import Config
 
 
 def send_invite_email(to_email: str, alias: str, temp_password: str):

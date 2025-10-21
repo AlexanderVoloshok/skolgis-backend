@@ -2,9 +2,9 @@ import json
 import bcrypt
 from datetime import datetime, timezone, timedelta
 from sqlalchemy import text
-from sql_utils import execute_sql_and_commit
-from config import Config
-from utils import get_logger
+from src.sql_utils import execute_sql_and_commit
+from src.config import Config
+from src.utils import get_logger
 
 logger = get_logger(__name__)
 

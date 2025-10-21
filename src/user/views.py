@@ -1,9 +1,9 @@
 from flask import Blueprint, request, jsonify
-from .user import User, get_users_list
-from auth.mail import send_invite_email
-from auth.jwt import get_jwt_identity
-from admin.utils import admin_only
-from consts import UserRoles
+from src.user.user import User, get_users_list
+from src.auth.mail import send_invite_email
+from src.auth.jwt import get_jwt_identity
+from src.admin.utils import admin_only
+from src.consts import UserRoles
 
 user_bp = Blueprint('user', __name__)
 

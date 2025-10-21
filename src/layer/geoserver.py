@@ -5,7 +5,7 @@ from geo.Geoserver import Geoserver, GeoserverException
 from xml.etree.ElementTree import Element, SubElement, tostring
 from xml.dom import minidom
 from typing import Any, Dict, Optional, Tuple
-from config import Config
+from src.config import Config
 from utils import get_logger
 
 logger = get_logger(__name__)

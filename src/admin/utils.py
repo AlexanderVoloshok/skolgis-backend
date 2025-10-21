@@ -1,6 +1,6 @@
 from flask import request, jsonify
-from consts import UserRoles
-from auth.jwt import get_jwt_identity
+from src.consts import UserRoles
+from src.auth.jwt import get_jwt_identity
 
 
 def admin_only(fn):
