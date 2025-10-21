@@ -33,7 +33,8 @@ services:
       - INITIAL_MEMORY=1G
       - MAXIMUM_MEMORY=2G
       - HTTP_PROXY_NAME=${HTTP_PROXY_NAME}
-      - HTTP_SCHEME=https
+      - HTTP_SCHEME=http
+      - PROXY_BASE_URL=http://89.223.68.75/geoserver/
     healthcheck:
       test: curl --fail -s http://localhost:8080/ || exit 1
       interval: 1m30s
