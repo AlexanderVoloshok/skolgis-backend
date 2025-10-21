@@ -1,12 +1,12 @@
 version: "1"
-#networks:
-#  sklkv:
-#    external: true
-#    name: sklkv
+networks:
+  sklkv:
+    external: true
+    name: sklkv
 services:
   backend:
-    #networks:
-    #  - sklkv
+    networks:
+      - sklkv
     build: .
     container_name: skolgis-backend
     ports:
@@ -16,8 +16,8 @@ services:
     image: kartoza/geoserver:2.20.1
     container_name: geoserver
     restart: on-failure
-    #networks:
-    #  - sklkv
+    networks:
+      - sklkv
     volumes:
       - geoserver_data:/opt/geoserver/data_dir
     ports:
@@ -44,7 +44,7 @@ services:
     container_name: skolgis-nginx
     restart: on-failure
     networks:
-      - cnstr
+      - sklkv
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/conf.d/nginx.conf
       - ./nginx/locations.conf:/etc/nginx/conf.d/locations/locations.conf
