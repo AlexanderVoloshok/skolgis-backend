@@ -6,7 +6,7 @@ from xml.etree.ElementTree import Element, SubElement, tostring
 from xml.dom import minidom
 from typing import Any, Dict, Optional, Tuple
 from src.config import Config
-from utils import get_logger
+from src.utils import get_logger
 
 logger = get_logger(__name__)
 

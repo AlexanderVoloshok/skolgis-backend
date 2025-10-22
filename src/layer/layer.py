@@ -25,8 +25,8 @@ fiona.drvsupport.supported_drivers['KML'] = 'rw'
 fiona.drvsupport.supported_drivers['libkml'] = 'rw'
 fiona.drvsupport.supported_drivers['LIBKML'] = 'rw'
 
-DEFAULT_FEATURES_LIMIT = 20
-MAX_FEATURES_LIMIT = 1000
+DEFAULT_FEATURES_LIMIT = 5000
+MAX_FEATURES_LIMIT = 10000
 
 class LayerNotExistException(Exception):
     pass
@@ -63,6 +63,7 @@ class Layer():
         offset_raw = options.get("offset", type=int)
         order_raw = options.get("order")
 
+        GEOM_COL = sql.literal_column("geom").label("geom")
         CALC_AREA_COL = sql.literal_column(
             "round((ST_Area(ST_Transform(ST_MakeValid(geom), 4326)::geography)/ 10000)::numeric, 3)"
         ).label("calc_area")
@@ -76,7 +77,10 @@ class Layer():
         order_items = parse_order(order_raw)
 
         # Основные колонки + calc_area.
-        select_cols = [self.layer_table.c[name] for name in self.columns.keys() if name in self.layer_table.c]
+        select_cols = [
+            col for col in self.layer_table.c  if col.name in self.columns and col.name != 'geom'
+        ]
+        select_cols.append(GEOM_COL)
         select_cols.append(CALC_AREA_COL)
 
         stmt = select(*select_cols).where(where_expr)
@@ -92,7 +96,6 @@ class Layer():
 
         # Компилируем SELECT в строку с ЛИТЕРАЛИЗОВАННЫМИ значениями (безопасно: всё биндилось SQLAlchemy)
         features = read_postgis(stmt)
-
         result = json.loads(features.to_json(default=str))
         result["total"] = int(total)
         result['filtered'] = len(features)
