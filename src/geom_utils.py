@@ -12,7 +12,7 @@ def get_geom_type(layer_name: str):
     WHERE f_table_schema = 'skolkovo_layers' AND f_table_name = '%s' and f_geometry_column = 'geom'
     """ % layer_name
     df = read_sql(q)
-    return df.loc[0, 'type']
+    return df.loc[0, 'type'] if df.loc[0, 'type'] != 'GEOMETRY' else 'POLYGON'
 
 
 def enforce_geom_type(geom):

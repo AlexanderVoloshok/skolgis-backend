@@ -138,13 +138,21 @@ class Layer():
         calc_area = ', round((ST_Area(ST_Transform(ST_MakeValid(geom), 4326)::geography)/ 10000)::numeric,  3) as calc_area' 
         not_polygon = self.geom_type not in ('POLYGON', 'MULTIPOLYGON')
         q = f"""
-            SELECT * {'' if not_polygon else calc_area} FROM skolkovo_layers.{self.name}
+            SELECT * {'' if not_polygon else calc_area} FROM skolkovo_layers.{self.name} lyr
             WHERE ST_DWithin(
                 st_transform(ST_GeomFromText('POINT({x} {y})', 3857), 4326)
-            , skolkovo_layers.{self.name}.geom, {0.001 if not_polygon else 0})
+            , lyr.geom, {0.0005 if not_polygon else 0})
         """
         feature = read_postgis(q)
-        return json.loads(feature.to_json(default=str))
+        if len(feature) == 0:
+            return {"type": "FeatureCollection", "features": [], 'files': []}
+        fid = feature.loc[0, 'id']
+        files = read_sql(f"""
+            select id, original_name, stored_name, mime, size_bytes, created_at from skolkovo_general.file_attachments where layer = '{self.name}' and fid = {fid}
+        """)
+        feature = json.loads(feature.to_json(default=str))
+        feature['files'] = files.to_dict()
+        return feature
 
 
     def get_extent(self, crs:int=3857):
@@ -427,26 +435,17 @@ class Layer():
             rewrite_table_name (bool)
         """
 
-        #TODO: переписать с использованием функций sql_utils
-        with ENGINE.connect() as conn:
-            with conn.begin() as trans:
-                try:
-                    q = self.layers_table.insert().returning(self.layers_table.c.id)
-                    result = conn.execute(q, payload)
-                    row = result.fetchone()
+        q = self.layers_table.insert().returning(self.layers_table.c.id)
+        result = execute_sql_and_commit(q, payload)
+        row = result.fetchone()
 
-                    attrs = {'table_name': f"layer_{row[0]}"}
+        attrs = {'table_name': f"layer_{row[0]}"}
 
-                    q1 = self.layers_table.update()\
-                        .where(self.layers_table.c.id == row[0])\
-                        .values(attrs)
-                    result = conn.execute(q1)
-                    trans.commit()
-                except Exception as e:
-                    raise e
-                finally:
-                    if conn:
-                        conn.close()
+        q1 = self.layers_table.update()\
+            .where(self.layers_table.c.id == row[0])\
+            .values(attrs)
+
+        execute_sql_and_commit(q1)
 
         return row
 
