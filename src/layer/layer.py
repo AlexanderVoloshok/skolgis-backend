@@ -9,6 +9,7 @@ from typing import Union
 from sqlalchemy import select, text, exc, sql, func, literal
 from geoalchemy2.shape import from_shape
 from geoalchemy2 import Geometry
+from src.aliases import FieldAlias
 from src.config import Config, ENGINE, MAIN_META, LAYERS_META
 from src.geom_utils import parse_geometry, reproject_to_wgs, get_geom_type, enforce_geom_type
 from src.sql_utils import read_sql, read_postgis, execute_sql_query, execute_sql_and_commit
@@ -205,7 +206,7 @@ class Layer():
         """
         #TODO: вынести кусок обработки геометрии, т.к. он идентичен с add_feature
         id = attrs['id']
-        attrs = {k:v for k,v in attrs.items() if k not in ('id')}
+        attrs = {k:v for k,v in attrs.items() if k not in ('id', 'calc_area', 'table_name')}
         if 'geom' in attrs.keys():
             geometry = parse_geometry(attrs['geom'], self.geom_type)
             #reproject
@@ -286,9 +287,9 @@ class Layer():
                 gdf[col] = gdf[col].astype(str)
         
         if file_type == 'xlsx':
-            #fields = FieldAlias({'user_id': user_id, 'role': self.owner.role})
-            #columns_dict = fields.get_field_aliases(orient="dict")
-            #gdf = gdf.rename(columns=columns_dict)
+            fields = FieldAlias()
+            columns_dict = fields.get_field_aliases(orient="dict")
+            gdf = gdf.rename(columns=columns_dict)
             gdf.to_excel(file_path)
         elif file_type in ('kml', 'gpkg'):
             gdf.to_file(file_path, driver=file_type.upper())

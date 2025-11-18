@@ -8,6 +8,7 @@ from src.consts import UserRoles
 from src.user.utils import jsonb_set_stmt
 from src.auth.misc import password_hash_json, invite_payload_json
 from src.auth.jwt import create_access_token
+from src.aliases import FieldAlias
 from src.sql_utils import read_sql, execute_sql_and_commit
 from src.utils import get_logger
 
@@ -43,6 +44,17 @@ class User():
             FROM skolkovo_general.layers WHERE layers_type_id in (1,3)
         """)
         return df.to_json(orient="records")
+    
+    @classmethod
+    def get_field_aliases(cls):
+        """Возвращает список алиасов полей пользователя в формате Json
+
+        Returns:
+            dict: список алиасов пользователя
+        """
+        
+        fields = FieldAlias()
+        return fields.get_field_aliases()
     
     @classmethod
     def add(cls, payload: dict):
