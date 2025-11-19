@@ -1,7 +1,7 @@
 import json
 from sqlalchemy.dialects.postgresql import insert
-from config import MAIN_META
-from sql_utils import read_sql, execute_sql_and_commit
+from src.config import MAIN_META
+from src.sql_utils import read_sql, execute_sql_and_commit
 
 
 class FieldAlias:
