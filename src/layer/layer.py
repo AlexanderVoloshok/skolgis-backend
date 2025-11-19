@@ -14,6 +14,7 @@ from src.config import Config, ENGINE, MAIN_META, LAYERS_META
 from src.geom_utils import parse_geometry, reproject_to_wgs, get_geom_type, enforce_geom_type
 from src.sql_utils import read_sql, read_postgis, execute_sql_query, execute_sql_and_commit
 from src.layer.utils import parse_filters, parse_order, build_where
+from src.layer.geoserver import clear_geoserver_cache
 from src.layer.kml import parse_kml
 import src.consts as consts
 from src.utils import get_logger
@@ -221,7 +222,7 @@ class Layer():
             .where(self.layer_table.c.id == id)\
             .values(attrs)
         cursor = execute_sql_and_commit(q)
-
+        clear_geoserver_cache(self.name)
         return {"status": "ok", "layer": self.name}
     
 
@@ -246,6 +247,7 @@ class Layer():
             .returning(self.layer_table.c.id)
         cursor = execute_sql_and_commit(q)
         id = cursor.fetchone()[0]
+        clear_geoserver_cache(self.name)
         return {"status": "ok", "layer": self.name, "id": id}
 
 
@@ -260,6 +262,7 @@ class Layer():
             .where(self.layer_table.c.id == id)
         cursor = execute_sql_and_commit(q)
         res = cursor.fetchone()[0]
+        clear_geoserver_cache(self.name)
         return {"status": "ok", "layer": self.name, "feature": res}
 
 
