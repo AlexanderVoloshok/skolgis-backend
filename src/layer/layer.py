@@ -143,7 +143,7 @@ class Layer():
             SELECT * {'' if not_polygon else calc_area} FROM skolkovo_layers.{self.name} lyr
             WHERE ST_DWithin(
                 st_transform(ST_GeomFromText('POINT({x} {y})', 3857), 4326)
-            , lyr.geom, {0.0005 if not_polygon else 0})
+            , lyr.geom, {0.0001 if not_polygon else 0})
         """
         feature = read_postgis(q)
         if len(feature) == 0:
