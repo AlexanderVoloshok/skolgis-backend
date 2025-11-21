@@ -1,5 +1,5 @@
-from src.config import db, host, port, user, pw
-from src.layer.geoserver import geo
+from config import db, host, port, user, pw
+from layer.geoserver import geo
 from geo.Geoserver import GeoserverException
 from utils import get_logger
 
@@ -12,6 +12,6 @@ except GeoserverException:
     logger.info('geoserver workspace not created')
 
 try:
-    geo.create_featurestore(store_name='skolgis_postgis', workspace='skolgis', db=db, host=host, port=port, schema="geo",  pg_user=user, pg_password=pw)
+    geo.create_featurestore(store_name='skolgis_postgis', workspace='skolgis', db=db, host=host, port=port, schema="skolkovo_layers",  pg_user=user, pg_password=pw)
 except GeoserverException:
     logger.info('geoserver featurestore not created')

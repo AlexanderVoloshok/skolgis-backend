@@ -35,12 +35,13 @@ def publish_on_geoserver(table_name: str):
 def clear_geoserver_cache(name: str):
     """Очищает кэш слоя на geoserver
     """
-    url = f"{Config.GEOSERVER_ROOT}/gwc/rest/seed/rgis:{name}" #.json
+    url = f"{Config.GEOSERVER_ROOT}/gwc/rest/seed/skolkovo_layers:{name}" #.json
+    print(url, Config.GEOSERVER_USER, Config.GEOSERVER_PWD)
     headers = {
         "Content-Type": "application/json"
     }
     data = {"seedRequest": {
-        "name": f"rgis:{name}",
+        "name": f"skolkovo_layers:{name}",
         "gridSetId": "EPSG:900913",
         "zoomStart": 0,
         "zoomStop": 30,

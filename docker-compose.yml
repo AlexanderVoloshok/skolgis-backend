@@ -30,6 +30,8 @@ services:
       - GEOWEBCACHE_CACHE_DIR=/opt/geoserver/data_dir/gwc
       - GEOSERVER_ADMIN_USER=skolkovoroot
       - GEOSERVER_ADMIN_PASSWORD=MEWt4wneYVZy2cPvr3j4
+      - GEOSERVER_WORKSPACE=skolkgis
+      - GEOSERVER_STORE_NAME=skolgis_postgis
       - INITIAL_MEMORY=1G
       - MAXIMUM_MEMORY=2G
       # убираем ПУСТОЙ HTTP_PROXY_NAME

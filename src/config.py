@@ -27,15 +27,15 @@ class Config():
     SECRET_KEY = os.getenv('SECRET_KEY')
     UPLOAD_FOLDER = os.path.dirname(os.path.realpath(__file__)) + '/files'
 
-    GEOSERVER_ROOT = os.getenv('GEOSERVER_ROOT', 'http://geoserver:8080/geoserver')
-    GEOSERVER_USER = os.getenv('GEOSERVER_USER')
-    GEOSERVER_PWD = os.getenv('GEOSERVER_PWD')
+    GEOSERVER_ROOT = os.getenv('PROXY_BASE_URL', 'http://89.223.68.75/geoserver')
+    GEOSERVER_USER = os.getenv('GEOSERVER_ADMIN_USER')
+    GEOSERVER_PWD = os.getenv('GEOSERVER_ADMIN_PASSWORD')
     GEOSERVER_WORKSPACE = os.getenv('GEOSERVER_WORKSPACE')
     GEOSERVER_STORE_NAME = os.getenv('GEOSERVER_STORE_NAME')
 
     #TODO: вынести sql-схемы в константы
 
-    TILES_DIR = os.path.dirname(os.path.realpath(__file__)) + '/assets/3dtiles'
+    #TILES_DIR = os.path.dirname(os.path.realpath(__file__)) + '/assets/3dtiles'
     
     ENCRYPT_ALG = "HS256"
     MAX_CONTENT_LENGTH = 4 * 1024 * 1024 * 1024 # 4 GB
