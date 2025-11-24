@@ -25,9 +25,9 @@ class FeaturesSchema(Schema):
     y = fields.Float(required=False)
     limit = fields.Integer(required=False, validate=[Range(min=1, error="invalid features limit")])
     offset = fields.Integer(required=False, validate=[Range(min=0, error="invalid features offset")])
-    filter = fields.String(required=False, allow_none=True, validate=[Length(max=100, error="value is too long")])
-    filterValue = fields.String(required=False, allow_none=True, validate=[Length(max=100, error="value is too long")])
-    orderBy = fields.String(required=False, allow_none=True, validate=[Length(max=100, error="value is too long")])
+    filter = fields.String(required=False, allow_none=True)
+    filterValue = fields.String(required=False, allow_none=True)
+    orderBy = fields.String(required=False, allow_none=True)
     orderFn = fields.String(
         allow_none=True,
         validate=OneOf(["ascend", "descend"], error="Invalid value for orderFn. Must be 'ascend' or 'descend'.")

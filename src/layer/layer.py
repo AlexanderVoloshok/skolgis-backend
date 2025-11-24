@@ -1,10 +1,8 @@
-import os
 import json
 import geopandas as gpd
 import fiona
 from datetime import datetime, time, date
 from werkzeug.datastructures import FileStorage
-from werkzeug.utils import secure_filename, safe_join
 from typing import Union
 from sqlalchemy import select, text, exc, sql, func, literal
 from geoalchemy2.shape import from_shape
@@ -13,7 +11,7 @@ from src.aliases import FieldAlias
 from src.config import Config, ENGINE, MAIN_META, LAYERS_META
 from src.geom_utils import parse_geometry, reproject_to_wgs, get_geom_type, enforce_geom_type
 from src.sql_utils import read_sql, read_postgis, execute_sql_query, execute_sql_and_commit
-from src.layer.utils import parse_filters, parse_order, build_where
+from src.layer.utils import parse_order, build_where
 from src.layer.geoserver import clear_geoserver_cache
 from src.layer.kml import parse_kml
 import src.consts as consts
@@ -35,7 +33,7 @@ class LayerNotExistException(Exception):
 
 
 class Layer():
-    layers_table = MAIN_META.tables['skolkovo_general.layers'] 
+    layers_table = MAIN_META.tables['skolkovo_general.layers']
 
     def __init__(self, name: str, owner=None) -> None:
         self.name = name
@@ -60,18 +58,18 @@ class Layer():
             json: 
         """
 
-        filters_raw = options.get("filters")
+        filters_raw = options.get("filter")
         limit_raw = options.get("limit", type=int)
         offset_raw = options.get("offset", type=int)
         order_raw = options.get("order")
 
+        ALLOWED_COLUMNS = {c.name: c for c in self.layer_table.columns}
         GEOM_COL = sql.literal_column("geom").label("geom")
         CALC_AREA_COL = sql.literal_column(
             "round((ST_Area(ST_Transform(ST_MakeValid(geom), 4326)::geography)/ 10000)::numeric, 3)"
         ).label("calc_area")
         
-        rules = parse_filters(filters_raw)
-        where_expr = build_where(rules)
+        where_expr = build_where(filters_raw, ALLOWED_COLUMNS)
 
         limit = DEFAULT_FEATURES_LIMIT if not limit_raw or limit_raw <= 0 else min(limit_raw, MAX_FEATURES_LIMIT)
         offset = 0 if not offset_raw or offset_raw < 0 else offset_raw
@@ -379,56 +377,12 @@ class Layer():
         layer.to_postgis(payload['table_name'], ENGINE, schema="skolkovo_layers", if_exists='replace', index=False)
         cls.add_primary_key(cls, payload['table_name'], replace="id" in layer.columns)
         LAYERS_META.reflect(bind=ENGINE)
-        #TODO: вызвать список слоёв из pg_tileserv, чтобы стриггерить обновление данных
 
         df = read_sql("SELECT * FROM skolkovo_general.layers where id = %s", params=(updated_layer_id,))
         output['layer'] = df.to_dict(orient="records")[0]
         if len(layer) > 0:
             output['bbox'] = list(layer.to_crs(3857).geometry.total_bounds)
         return output
-
-
-    def attach_file(self, file: FileStorage, fid: int):
-        """Прикладывает файл к фиче слоя
-
-        Args:
-            file (FileStorage): файл
-            fid (int): id фичи
-        """
-        pass
-
-
-    def delete_attachment(self, filename: str, fid: int):
-        """Удаляет вложение с фичи слоя
-
-        Args:
-            filename (str): имя файла
-            fid (int): id фичи
-        """
-        safe_name = secure_filename(filename)
-        file_path = safe_join(Config.UPLOAD_FOLDER + '/attachments', safe_name)
-
-        if file_path is None:
-            return {"error": "Недопустимый путь"}, 400
-
-        if not os.path.isfile(file_path):
-            return {"error": "Файл не найден"}, 404
-
-        # Если запрашиваемый файл действительно относится к этой фиче слоя, то удаляем
-        # TODO: наверное, стоит завести отдельную таблицу на вложения и не трогать сам слой
-        cols = self.layer_table.c
-        q = select(cols.attachments).where(cols.id == fid)
-        row = execute_sql_query(q).fetchone()
-        if safe_name not in row[0]:
-            return {"error": "Файл не найден"}, 404
-
-        try:
-            os.remove(file_path)
-            #TODO: удалить файл из таблицы
-        except OSError as e:
-            return {"error": f"Не удалось удалить файл: {e.strerror}"}, 500
-
-        return {"message": "Файл удалён", "filename": safe_name}, 200
 
 
     def _update_layers_table(self, payload: dict):

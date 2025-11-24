@@ -1,7 +1,6 @@
 import json
 from typing import Any, Dict, List, Tuple, Optional
-
-from sqlalchemy import and_, or_, not_, true, false
+from sqlalchemy import and_, or_, not_, true, false, Column
 from sqlalchemy.sql.expression import BinaryExpression
 
 def parse_filters(raw) -> List[Dict[str, Any]]:
@@ -16,7 +15,9 @@ def parse_filters(raw) -> List[Dict[str, Any]]:
         return raw
     raise ValueError("filters must be an array")
 
-def build_where(rules: List[Dict[str, Any]]) -> BinaryExpression:
+def build_where(filters_raw: Any, columns: dict[str, Column[Any]]) -> BinaryExpression:
+
+    rules = parse_filters(filters_raw)
     clauses: List[BinaryExpression] = []
 
     for r in rules:
@@ -26,6 +27,11 @@ def build_where(rules: List[Dict[str, Any]]) -> BinaryExpression:
         op = r.get("op")
         value = r.get("value")
         inclusive = r.get("inclusive", True)
+
+        if col not in columns:
+            raise ValueError(f"Forbidden field: {col}")
+
+        col = columns[col]
 
         # BETWEEN / NOT BETWEEN
         if op in ("BETWEEN", "NOT BETWEEN"):
