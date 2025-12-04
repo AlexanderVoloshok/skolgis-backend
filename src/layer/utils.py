@@ -15,7 +15,7 @@ def parse_filters(raw) -> List[Dict[str, Any]]:
         return raw
     raise ValueError("filters must be an array")
 
-def build_where(filters_raw: Any, columns: dict[str, Column[Any]]) -> BinaryExpression:
+def build_where(filters_raw: Any, columns: Dict[str, Column[Any]]) -> BinaryExpression:
 
     rules = parse_filters(filters_raw)
     clauses: List[BinaryExpression] = []
