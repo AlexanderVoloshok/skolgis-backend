@@ -8,7 +8,7 @@ from src.sql_utils import execute_sql_and_commit
 
 files_table = MAIN_META.tables['skolkovo_general.file_attachments'] 
 
-def attatch_file(layer_name: str, fid: int, f):
+def attatch_file(layer_name: str, fid: int, f) -> dict:
     """Сохраняет вложение как файл
 
     Args:
@@ -44,10 +44,10 @@ def attatch_file(layer_name: str, fid: int, f):
     }
     q = files_table.insert()\
         .values(payload)\
-        .returning(files_table.c.stored_name)
+        .returning(files_table.c.id)
     cursor = execute_sql_and_commit(q)
-    stored_name = cursor.fetchone()[0]
-    return stored_name
+    payload['id'] = cursor.fetchone()[0]
+    return payload
 
 
 def remove_file(layer_name: str, fid: int, filename: str):

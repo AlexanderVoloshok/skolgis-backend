@@ -4,14 +4,14 @@ import fiona
 from datetime import datetime, time, date
 from werkzeug.datastructures import FileStorage
 from typing import Union
-from sqlalchemy import select, text, exc, sql, func, literal
+from sqlalchemy import select, text, exc, sql, func, literal, Column
 from geoalchemy2.shape import from_shape
 from geoalchemy2 import Geometry
 from src.aliases import FieldAlias
 from src.config import Config, ENGINE, MAIN_META, LAYERS_META
 from src.geom_utils import parse_geometry, reproject_to_wgs, get_geom_type, enforce_geom_type
 from src.sql_utils import read_sql, read_postgis, execute_sql_query, execute_sql_and_commit
-from src.layer.utils import parse_order, build_where
+from src.layer.utils import parse_order, build_where, resolve_type
 from src.layer.geoserver import clear_geoserver_cache
 from src.layer.kml import parse_kml
 import src.consts as consts
@@ -151,7 +151,7 @@ class Layer():
             select id, original_name, stored_name, mime, size_bytes, created_at from skolkovo_general.file_attachments where layer = '{self.name}' and fid = {fid}
         """)
         feature = json.loads(feature.to_json(default=str))
-        feature['files'] = files.to_dict()
+        feature['files'] = json.loads(files.to_json(orient="records"))
         return feature
 
 
@@ -262,6 +262,29 @@ class Layer():
         res = cursor.fetchone()[0]
         clear_geoserver_cache(self.name)
         return {"status": "ok", "layer": self.name, "feature": res}
+
+
+    def add_field(self, field_name: str, field_type: str):
+        # описываем новую колонку
+        col_type = resolve_type(field_type)
+
+        # 1. ALTER TABLE ... ADD COLUMN ... в БД
+        ddl_type = col_type.compile(dialect=ENGINE.dialect)
+        table_name = self.layer_table.fullname  # учитывает схему, если есть
+    
+        q = text(f'ALTER TABLE {table_name} ADD COLUMN "{field_name}" {ddl_type}')
+        result = execute_sql_and_commit(q)
+            
+        # 2. Обновить метаданные SQLAlchemy в памяти
+        new_col = Column(field_name, col_type, nullable=True)
+        self.layer_table.append_column(new_col)
+        return {"status": "ok", "layer": self.name, "column": field_name}
+
+
+    def delete_field(self, field_name: str):
+        with ENGINE.begin() as conn:
+            self.layer_table.c[field_name].drop(bind=conn)
+        return {"status": "ok", "layer": self.name, "column": field_name}
 
 
     def export(self, file_type: str):

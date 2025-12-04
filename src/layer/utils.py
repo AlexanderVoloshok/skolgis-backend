@@ -1,6 +1,6 @@
 import json
 from typing import Any, Dict, List, Tuple, Optional
-from sqlalchemy import and_, or_, not_, true, false, Column
+from sqlalchemy import and_, or_, not_, true, false, Column, String, DateTime, Numeric
 from sqlalchemy.sql.expression import BinaryExpression
 
 def parse_filters(raw) -> List[Dict[str, Any]]:
@@ -105,3 +105,21 @@ def parse_order(raw: Optional[str]) -> List[Tuple[str, str]]:
             raise ValueError("Bad order direction (asc/desc)")
         out.append((col, dir_))
     return out
+
+def resolve_type(kind: str, length: int | None = None):
+    """Маппинг 'строка/дата/число' -> тип SQLAlchemy."""
+    kind = kind.lower()
+
+    # строка
+    if kind in ("текст", "string", "str", "text"):
+        return String(length or 150)
+
+    # дата
+    if kind in ("дата", "date"):
+        return DateTime()
+
+    # число (по умолчанию целое)
+    if kind in ("число", "number", "int", "integer"):
+        return Numeric()
+
+    raise ValueError(f"Неизвестный тип колонки: {kind}")

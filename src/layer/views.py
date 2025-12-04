@@ -1,11 +1,11 @@
 import json
-from flask import Blueprint, request, jsonify
-from .layer import Layer
-from .files import attatch_file, remove_file
+from flask import Blueprint, request
+from src.layer.layer import Layer
+from src.layer.files import attatch_file, remove_file
 from src.user.user import User
 from src.config import Config
 from src.validation import FeaturesSchema, valid_id, valid_file, validation_chain
-
+from src.consts import RESERVED_WORDS
 
 layers_bp = Blueprint('layer', __name__)
 
@@ -97,9 +97,27 @@ def delete_feature(layer_name: str):
     return layer.delete_feature(data['id'])
 
 
+@layers_bp.route('/<layer_name>/fields/add', methods=['POST'])
+def add_field(layer_name: str):
+    data = json.loads(request.data)
+    if data['name'] in RESERVED_WORDS:
+        return {"error": f"Field {data['name']} is reserved and cannot be added"}, 403
+    layer = Layer(layer_name)
+    return layer.add_field(data['name'], data['type'])
+
+
+@layers_bp.route('/<layer_name>/fields/delete', methods=['POST'])
+def delete_field(layer_name: str):
+    data = json.loads(request.data)
+    layer = Layer(layer_name)
+    if data['name'] in layer.columns.keys():
+        return {"error": f"Field {data['name']} does not exist"}, 403
+    return layer.delete_field(data['name'])
+
+
 @layers_bp.route('/<layer_name>/<fid>/file/attatch', methods=['POST'])
 @validation_chain([valid_file, valid_id])
-def attatch_file(layer_name: str, fid: int):
+def attatch_files(layer_name: str, fid: int):
     files = json.loads(request.data)
     # проверяем, нет ли уже файла с таким именем
     #сохраняем файл на  диск
@@ -112,7 +130,10 @@ def attatch_file(layer_name: str, fid: int):
         file = attatch_file(layer_name, fid, f)
         attachments.append(file)
 
-    return jsonify(attachments), 201
+    return {
+        "status": "ok",
+        "files": attachments
+    }, 201
 
 
 @layers_bp.route('/<layer_name>/<fid>/file/<filename>/remove', methods=['POST'])
