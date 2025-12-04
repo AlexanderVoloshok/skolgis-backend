@@ -1,10 +1,13 @@
 import time
 import os
+import json
 import traceback
 import mimetypes
 from flask import Flask, request, send_from_directory, abort, jsonify, send_file
 from flask_cors import CORS
 
+
+from src.geom_utils import compute_polygons
 from src.presentation import pptx_from_image
 from src.config import Config
 from src.utils import get_logger
@@ -59,6 +62,13 @@ def handle_error(e: Exception):
 def hello():
     # do your things here
     return "Welcome to Skolkovo GIS"
+
+@app.route(f'{Config.APP_ROOT}/geometry/merge_polygons', methods=['POST'])
+#@jwt_required
+def compute_geometry():
+    data = json.loads(request.data)['polygons']
+    return compute_polygons(data[0], data[1])
+
 
 #TODO: генерить файл и отдавать можно на лету без сохранения на диск
 @app.route(f'{Config.APP_ROOT}/file/<filename>', methods=['GET'])

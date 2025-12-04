@@ -1,3 +1,5 @@
+import json
+import geopandas as gpd
 from pyproj import CRS, Transformer
 from shapely.geometry import Polygon, MultiPolygon, MultiLineString, Point
 from shapely.ops import transform
@@ -46,3 +48,31 @@ def parse_geometry(data, geom_type):
 def reproject_to_wgs(geometry):
     transformer = Transformer.from_crs(project_3857, project_4326, always_xy=True)
     return transform(lambda x, y: transformer.transform(x, y), geometry)
+
+
+def compute_polygons(polygon1: list, polygon2: list):
+    a_df = gpd.GeoDataFrame.from_features([polygon1])
+    b_df = gpd.GeoDataFrame.from_features([polygon2])
+    polygon1 = a_df.loc[0].geometry
+    polygon2 = b_df.loc[0].geometry
+    # Если один полигон полностью внутри другого
+    if polygon1.contains(polygon2):
+        # Если polygon2 внутри polygon1, создаем отверстие в polygon1
+        geom = polygon1.difference(polygon2)
+    elif polygon2.contains(polygon1):
+        # Если polygon1 внутри polygon2, создаем отверстие в polygon2
+        geom = polygon2.difference(polygon1)
+    
+    # Если полигоны пересекаются
+    elif polygon1.intersects(polygon2):
+        # Если пересекаются, объединяем их в один полигон
+        geom = polygon1.union(polygon2)
+    else:
+        # Если они не пересекаются и не вложены друг в друга, создаем мультиполигон
+        geom = polygon1.union(polygon2)
+
+    if isinstance(geom, MultiPolygon):
+        feature = gpd.GeoDataFrame([{'geometry': geom}])
+    else:
+        feature = gpd.GeoDataFrame([{'geometry': MultiPolygon([geom])}])
+    return json.loads(feature.to_json())
