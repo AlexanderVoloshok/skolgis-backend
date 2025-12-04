@@ -106,7 +106,7 @@ def parse_order(raw: Optional[str]) -> List[Tuple[str, str]]:
         out.append((col, dir_))
     return out
 
-def resolve_type(kind: str, length: int | None = None):
+def resolve_type(kind: str, length: int = None):
     """Маппинг 'строка/дата/число' -> тип SQLAlchemy."""
     kind = kind.lower()
 
