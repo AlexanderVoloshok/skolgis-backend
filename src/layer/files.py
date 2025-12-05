@@ -26,6 +26,7 @@ def attatch_file(layer_name: str, fid: int, f) -> dict:
     original_name = f.filename
     stored_name = _unique_store_name(original_name)
     dst_path = target_dir / stored_name
+    target_dir.mkdir(parents=True, exist_ok=True)
 
     # 2) Сохраняем файл на диск
     f.save(dst_path)

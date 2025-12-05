@@ -94,7 +94,7 @@ def valid_file(request):
         f[1].seek(0)
         if file_size/(size **3) > 1:
             return False, f'Разрешено загружать файлы не более {size} МБ'
-        if not any([filename.endswith(el) for el in Config.ALLOWED_UPLOAD_FILETYPES]):
-            return False, f'Недопустимый тип файла. Разрешено загружать только {", ".join(Config.ALLOWED_UPLOAD_FILETYPES)}'
+        if not any([filename.endswith(el) for el in Config.ALLOWED_ATTACHMENT_FILETYPES]):
+            return False, f'Недопустимый тип файла. Разрешено загружать только {", ".join(Config.ALLOWED_ATTACHMENT_FILETYPES)}'
     return True, None
 

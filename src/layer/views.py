@@ -116,18 +116,17 @@ def delete_field(layer_name: str):
 
 
 @layers_bp.route('/<layer_name>/<fid>/file/attatch', methods=['POST'])
-@validation_chain([valid_file, valid_id])
+@validation_chain([valid_file])
 def attatch_files(layer_name: str, fid: int):
-    files = json.loads(request.data)
     # проверяем, нет ли уже файла с таким именем
     #сохраняем файл на  диск
     #добавляем имя файла в бд
 
     attachments = []
-    for f in files:
-        if not f.filename:
+    for f in request.files.items():
+        if not f[1].filename:
             continue
-        file = attatch_file(layer_name, fid, f)
+        file = attatch_file(layer_name, fid, f[1])
         attachments.append(file)
 
     return {
@@ -137,7 +136,7 @@ def attatch_files(layer_name: str, fid: int):
 
 
 @layers_bp.route('/<layer_name>/<fid>/file/<filename>/remove', methods=['POST'])
-@validation_chain([valid_file, valid_id])
+@validation_chain([valid_file])
 def remove_attatchment(layer_name: str, fid: int, filename: str):
     result = remove_file(layer_name, fid, filename)
     return result, 201
