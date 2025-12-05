@@ -84,21 +84,23 @@ class Layer():
         select_cols.append(CALC_AREA_COL)
 
         stmt = select(*select_cols).where(where_expr)
+        filtered_features = execute_sql_query(
+            select(func.count(literal(1))).select_from(stmt)
+        ).scalar_one()
         for name, direction in order_items:
             col = self.layer_table.c[name]
             stmt = stmt.order_by(col.desc() if direction == "desc" else col.asc())
         stmt = stmt.limit(limit).offset(offset)
 
-        # Отдельно total (с тем же WHERE)
-        count_stmt = select(func.count(literal(1))).select_from(self.layer_table).where(where_expr)
-
+        # Отдельно total
+        count_stmt = select(func.count(literal(1))).select_from(self.layer_table)
         total = execute_sql_query(count_stmt).scalar_one()
 
         # Компилируем SELECT в строку с ЛИТЕРАЛИЗОВАННЫМИ значениями (безопасно: всё биндилось SQLAlchemy)
         features = read_postgis(stmt)
         result = json.loads(features.to_json(default=str))
         result["total"] = int(total)
-        result['filtered'] = len(features)
+        result['filtered'] = filtered_features
 
         return result
        
@@ -278,12 +280,14 @@ class Layer():
         # 2. Обновить метаданные SQLAlchemy в памяти
         new_col = Column(field_name, col_type, nullable=True)
         self.layer_table.append_column(new_col)
+        LAYERS_META.reflect(bind=ENGINE)
         return {"status": "ok", "layer": self.name, "column": field_name}
 
 
     def delete_field(self, field_name: str):
         with ENGINE.begin() as conn:
             self.layer_table.c[field_name].drop(bind=conn)
+        LAYERS_META.reflect(bind=ENGINE)
         return {"status": "ok", "layer": self.name, "column": field_name}
 
 
