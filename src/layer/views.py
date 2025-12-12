@@ -139,4 +139,4 @@ def attatch_files(layer_name: str, fid: int):
 @validation_chain([valid_file])
 def remove_attatchment(layer_name: str, fid: int, filename: str):
     result = remove_file(layer_name, fid, filename)
-    return result, 201
+    return result

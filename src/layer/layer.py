@@ -150,7 +150,7 @@ class Layer():
             return {"type": "FeatureCollection", "features": [], 'files': []}
         fid = feature.loc[0, 'id']
         files = read_sql(f"""
-            select id, original_name, stored_name, mime, size_bytes, created_at from skolkovo_general.file_attachments where layer = '{self.name}' and fid = {fid}
+            select * from skolkovo_general.file_attachments where layer = '{self.name}' and fid = {fid}
         """)
         feature = json.loads(feature.to_json(default=str))
         feature['files'] = json.loads(files.to_json(orient="records"))

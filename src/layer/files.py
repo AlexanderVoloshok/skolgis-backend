@@ -20,13 +20,10 @@ def attatch_file(layer_name: str, fid: int, f) -> dict:
         _type_: _description_
     """
     upload_root = Path(Config.UPLOAD_FOLDER + '/attachments').resolve()
-    target_dir = upload_root / secure_filename(layer_name) / str(fid)
 
-    #TODO: проверить, что такого файла ещё нет
     original_name = f.filename
     stored_name = _unique_store_name(original_name)
-    dst_path = target_dir / stored_name
-    target_dir.mkdir(parents=True, exist_ok=True)
+    dst_path = upload_root / stored_name
 
     # 2) Сохраняем файл на диск
     f.save(dst_path)
@@ -53,14 +50,15 @@ def attatch_file(layer_name: str, fid: int, f) -> dict:
 
 def remove_file(layer_name: str, fid: int, filename: str):
     upload_root = Path(Config.UPLOAD_FOLDER + '/attachments').resolve()
-    target_dir = upload_root / secure_filename(layer_name) / str(fid)
-    stored_name = _unique_store_name(filename)
-    dst_path = target_dir / stored_name
+    dst_path = upload_root / filename
+    #try:
     os.remove(dst_path)
-
-    q = files_table.delete().where(files_table.c.layer_name == layer_name and files_table.c.fid == fid and files_table.c.stored_name == stored_name)
+    q = files_table.delete().where(files_table.c.layer == layer_name and files_table.c.fid == fid and files_table.c.stored_name == filename)
     cursor = execute_sql_and_commit(q)
-    return {"status": "ok", "stored_name": stored_name}
+    #except:
+    #    {"status": "bad", "stored_name": filename, "error": "Couldn't find such file"}, 403
+
+    return {"status": "ok", "stored_name": filename}, 201
 
 
 def _unique_store_name(original: str) -> str:
