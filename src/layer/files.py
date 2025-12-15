@@ -51,12 +51,12 @@ def attatch_file(layer_name: str, fid: int, f) -> dict:
 def remove_file(layer_name: str, fid: int, filename: str):
     upload_root = Path(Config.UPLOAD_FOLDER + '/attachments').resolve()
     dst_path = upload_root / filename
-    #try:
-    os.remove(dst_path)
-    q = files_table.delete().where(files_table.c.layer == layer_name and files_table.c.fid == fid and files_table.c.stored_name == filename)
+    try:
+        os.remove(dst_path)
+    except:
+        print(f"{filename}: no such file")
+    q = files_table.delete().where(files_table.c.layer == layer_name, files_table.c.fid == fid,  files_table.c.stored_name == filename)
     cursor = execute_sql_and_commit(q)
-    #except:
-    #    {"status": "bad", "stored_name": filename, "error": "Couldn't find such file"}, 403
 
     return {"status": "ok", "stored_name": filename}, 201
 
