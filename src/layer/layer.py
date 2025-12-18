@@ -266,6 +266,18 @@ class Layer():
         return {"status": "ok", "layer": self.name, "feature": res}
 
 
+    def get_field_values(self, field_name: str):
+        col = self.layer_table.c[field_name]
+        stmt = (
+            select(col)
+            .distinct()
+            .where(col.is_not(None))   # опционально, если не нужны NULL
+            .order_by(col.asc())
+        )
+        res = execute_sql_query(stmt).scalars().all()
+        return res
+
+
     def add_field(self, field_name: str, field_type: str):
         # описываем новую колонку
         col_type = resolve_type(field_type)

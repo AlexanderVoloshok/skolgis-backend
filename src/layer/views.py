@@ -99,6 +99,12 @@ def delete_feature(layer_name: str):
     return layer.delete_feature(data['id'])
 
 
+@layers_bp.route('/<layer_name>/fields/<field_name>/values', methods=['GET'])
+def get_field_values(layer_name: str, field_name: str):
+    layer = Layer(layer_name)
+    return layer.get_field_values(field_name)
+
+
 @layers_bp.route('/<layer_name>/fields/add', methods=['POST'])
 def add_field(layer_name: str):
     data = json.loads(request.data)
