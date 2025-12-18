@@ -291,7 +291,7 @@ class Layer():
         return {"status": "ok", "layer": self.name, "column": field_name}
 
 
-    def export(self, file_type: str):
+    def export(self, file_type: str, feature_ids: list = []):
         """Сохраняет слой в файл указанного формата
         """
 
@@ -300,9 +300,11 @@ class Layer():
         file_path = f'{Config.UPLOAD_FOLDER}/{filename}'
         is_polygon = self.geom_type in ('POLYGON', 'MULTIPOLYGON')
         calc_area = ', round((ST_Area(ST_Transform(ST_MakeValid(geom), 4326)::geography)/ 10000)::numeric,  3) as calc_area'
+        where = f'WHERE id in ({", ".join(feature_ids)})' if feature_ids else ''
 
         q = f"""
             SELECT *{calc_area if file_type == 'xlsx' and is_polygon else ''} FROM skolkovo_layers.{self.name}
+            {where}
             {'LIMIT 1048575' if file_type == 'xlsx' else ''}
         """
         gdf = read_postgis(q)
