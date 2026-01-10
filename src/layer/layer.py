@@ -174,7 +174,7 @@ class Layer():
     def get_alias(self):
         cols = self.layers_table.c
         q = select(cols.alias, cols.layers_type_id).where(cols.table_name == self.name)
-        rows = execute_sql_query(q).fetchall()
+        rows = execute_sql_query(q).fetchone()
         return rows[0]
     
 
@@ -312,7 +312,7 @@ class Layer():
         file_path = f'{Config.UPLOAD_FOLDER}/{filename}'
         is_polygon = self.geom_type in ('POLYGON', 'MULTIPOLYGON')
         calc_area = ', round((ST_Area(ST_Transform(ST_MakeValid(geom), 4326)::geography)/ 10000)::numeric,  3) as calc_area'
-        where = f'WHERE id in ({", ".join(feature_ids)})' if feature_ids else ''
+        where = f'WHERE id in ({", ".join(feature_ids)})' if len(feature_ids) > 0 and feature_ids != [''] else ''
 
         q = f"""
             SELECT *{calc_area if file_type == 'xlsx' and is_polygon else ''} FROM skolkovo_layers.{self.name}

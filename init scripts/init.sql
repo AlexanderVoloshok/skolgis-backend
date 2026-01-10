@@ -40,3 +40,32 @@ CREATE TABLE IF NOT EXISTS file_attachments (
 -- полезный индекс для выборок по объекту
 CREATE INDEX IF NOT EXISTS file_attachments_layer_fid_idx
   ON file_attachments (layer, fid);
+
+CREATE VIEW skolkovo_general.field_aliases as 
+
+WITH user_cols as (
+            	SELECT aa.attr_name, aa.alias FROM skolkovo_general.attr_alias aa
+            )
+
+SELECT columns.column_name as attr_name, 
+case 
+	when alias = '' or alias is null then columns.column_name
+	else alias
+end
+as alias, 
+
+table_name, 
+
+case 
+	when data_type in ('text', 'character varying') then 'text'
+	when data_type in ('double precision', 'integer', 'bigint') then 'number'
+	else data_type
+end
+as data_type 
+
+FROM information_schema.columns
+left join user_cols on columns.column_name = user_cols.attr_name
+WHERE columns.table_name in (
+	select table_name FROM skolkovo_general.layers where layers_type_id !=3 
+) and columns.column_name not in ('id', 'geom')
+order by attr_name;

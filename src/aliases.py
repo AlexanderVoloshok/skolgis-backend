@@ -13,19 +13,7 @@ class FieldAlias:
 
     def get_field_aliases(self, orient="records"):
         df = read_sql("""
-            WITH user_cols as (
-            	SELECT aa.attr_name, aa.alias FROM skolkovo_general.attr_alias aa
-            )
-            SELECT columns.column_name as attr_name, case 
-            	when alias = '' or alias is null then columns.column_name
-            	else alias
-            end
-            as alias, table_name FROM information_schema.columns
-            left join user_cols on columns.column_name = user_cols.attr_name
-            WHERE columns.table_name in (
-            	select table_name FROM skolkovo_general.layers where layers_type_id !=3 
-            ) and columns.column_name not in ('id', 'geom')
-            order by attr_name;
+            SELECT * FROM skolkovo_general.field_aliases
         """)
         
         return df.set_index('attr_name')['alias'].to_dict() if orient=="dict" else json.loads(df.to_json(orient="records"))
