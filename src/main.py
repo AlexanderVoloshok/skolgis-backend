@@ -76,7 +76,8 @@ def return_file(filename: str):
     if not any(filename.endswith(el) for el in Config.ALLOWED_EXPORT_FILETYPES):
         abort(404)
     try:
-        return send_from_directory(directory=Config.UPLOAD_FOLDER, path=filename, as_attachment=True)
+        directory = f'{Config.UPLOAD_FOLDER}/tmp' if os.path.exists(f'{Config.UPLOAD_FOLDER}/tmp/{filename}') else f'{Config.UPLOAD_FOLDER}/attachments'
+        return send_from_directory(directory=directory, path=filename, as_attachment=True)
     except FileNotFoundError:
         abort(404)
 

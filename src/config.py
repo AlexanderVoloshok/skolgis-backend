@@ -21,9 +21,11 @@ LAYERS_META.reflect(bind=ENGINE)
 
 class Config():
     ALLOWED_UPLOAD_FILETYPES = ('geojson', 'gpkg', 'kml', 'sld',)
-    ALLOWED_EXPORT_FILETYPES = ('geojson', 'gpkg', 'kml', 'xlsx', 'pptx')
+    ALLOWED_EXPORT_FILETYPES = ('geojson', 'gpkg', 'kml', 'xml', 'pdf', 'docx', 'txt', 'pptx', 
+      'png', 'jpg', 'jpeg','gif','webp','tif', 'tiff',
+      'zip', 'rar', '7z')
     ALLOWED_ATTACHMENT_FILETYPES = ('xml', 'pdf', 'docx', 'txt', 'pptx', 
-      'png', 'jpg', 'jpeg','gif','webp','tif', 'tiff'
+      'png', 'jpg', 'jpeg','gif','webp','tif', 'tiff',
       'zip', 'rar', '7z')
     APP_ROOT = '/api_skolkovo'
     SECRET_KEY = os.getenv('SECRET_KEY')
@@ -40,7 +42,7 @@ class Config():
     #TILES_DIR = os.path.dirname(os.path.realpath(__file__)) + '/assets/3dtiles'
     
     ENCRYPT_ALG = "HS256"
-    MAX_CONTENT_LENGTH = 4 * 1024 * 1024 * 1024 # 4 GB
+    MAX_CONTENT_LENGTH = 1 * 1024 * 1024 * 1024 # 1 GB
 
     SMTP_HOST = os.getenv("SMTP_HOST", "localhost")
     SMTP_PORT = int(os.getenv("SMTP_PORT", "25"))

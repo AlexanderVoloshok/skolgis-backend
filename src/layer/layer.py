@@ -4,6 +4,7 @@ import fiona
 from datetime import datetime, time, date
 from werkzeug.datastructures import FileStorage
 from typing import Union
+from shapely.geometry import shape
 from sqlalchemy import select, text, exc, sql, func, literal, Column
 from geoalchemy2.shape import from_shape
 from geoalchemy2 import Geometry
@@ -209,7 +210,7 @@ class Layer():
         id = attrs['id']
         attrs = {k:v for k,v in attrs.items() if k not in ('id', 'calc_area', 'table_name')}
         if 'geom' in attrs.keys():
-            geometry = parse_geometry(attrs['geom'], self.geom_type)
+            geometry = shape(attrs['geom']) #parse_geometry(attrs['geom'], attrs['geom']["type"])
             #reproject
             geom = reproject_to_wgs(geometry)
             attrs['geom'] = from_shape(geom)
@@ -309,7 +310,7 @@ class Layer():
 
         alias = self.get_alias()
         filename = f'{alias}_{str(datetime.now()).split(".")[0].replace(":", "_")}.{file_type}'
-        file_path = f'{Config.UPLOAD_FOLDER}/{filename}'
+        file_path = f'{Config.UPLOAD_FOLDER}/tmp/{filename}'
         is_polygon = self.geom_type in ('POLYGON', 'MULTIPOLYGON')
         calc_area = ', round((ST_Area(ST_Transform(ST_MakeValid(geom), 4326)::geography)/ 10000)::numeric,  3) as calc_area'
         where = f'WHERE id in ({", ".join(feature_ids)})' if len(feature_ids) > 0 and feature_ids != [''] else ''
