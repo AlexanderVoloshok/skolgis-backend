@@ -7,8 +7,8 @@ from flask import Flask, request, send_from_directory, abort, jsonify, send_file
 from flask_cors import CORS
 
 
+from src.presentation import fill_presentation
 from src.geom_utils import compute_polygons
-from src.presentation import pptx_from_image
 from src.config import Config
 from src.utils import get_logger
 

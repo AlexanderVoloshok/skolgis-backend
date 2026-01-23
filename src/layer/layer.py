@@ -40,13 +40,11 @@ class Layer():
         self.name = name
         self.props = self._get_layer_props(name)
         self.owner = owner
-        if 'skolkovo_layers.' + self.name in LAYERS_META.tables.keys():
+        if ('skolkovo_layers.' + self.name) in LAYERS_META.tables.keys():
             self.layer_table = LAYERS_META.tables['skolkovo_layers.' + self.name]
             self.columns = {column.name: str(column.type) for column in self.layer_table.columns}
             self.geom_type = get_geom_type(name)
             self.layer_table.c.geom.type = Geometry(self.geom_type, srid=4326)
-        else:
-            pass
     
 
     def get_features(self, options: dict):
@@ -509,4 +507,3 @@ class Layer():
                 else:
                     return f" WHERE lower({filterField}) like '%%{filterValue.lower()}%%'"
         return ""
-

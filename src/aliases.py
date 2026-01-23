@@ -3,12 +3,12 @@ from sqlalchemy.dialects.postgresql import insert
 from src.config import MAIN_META
 from src.sql_utils import read_sql, execute_sql_and_commit
 
-
+#TODO: одно и то же поле в разных слоях может называться по-разному
 class FieldAlias:
     alias_table = MAIN_META.tables['skolkovo_general.attr_alias']
 
-    def __init__(self):
-        pass
+    def __init__(self, layer_name: str = None):
+        self.layer_name = layer_name
 
 
     def get_field_aliases(self, orient="records"):

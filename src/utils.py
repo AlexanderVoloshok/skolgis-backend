@@ -1,4 +1,6 @@
+import time
 import logging
+import functools
 
 class InfoFilter(logging.Filter):
     def filter(self, record):
@@ -29,3 +31,15 @@ def get_logger(name):
     logger.addHandler(info_handler)
     logger.addHandler(error_handler)
     return logger
+
+def timeit(func):
+    """Декоратор для замера времени выполнения функции."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.perf_counter()
+        result = func(*args, **kwargs)
+        end_time = time.perf_counter()
+        elapsed_time = end_time - start_time
+        print(f"Функция {func.__name__} выполнена за {elapsed_time:.4f} сек.")
+        return result
+    return wrapper
