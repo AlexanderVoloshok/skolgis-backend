@@ -16,7 +16,6 @@ import contextily as cx
 import geopandas as gpd
 from copy import deepcopy
 from pptx import Presentation
-from pptx.enum.shapes import MSO_SHAPE_TYPE
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from typing import Tuple, List
@@ -24,38 +23,6 @@ from src.aliases import FieldAlias
 from src.sql_utils import read_postgis
 from src.utils import timeit
 
-
-def replace_picture_on_slide(
-    prs: Presentation,
-    slide_index: int,
-    image_bytes: bytes,
-    *,
-    shape_name: str | None = None,
-    alt_text: str | None = None,
-):
-    """
-    Заменяет картинку в существующей рамке слайда,
-    не меняя её размер и позицию.
-    """
-    slide = prs.slides[slide_index]
-
-    for shape in slide.shapes:
-        if shape.shape_type != MSO_SHAPE_TYPE.PICTURE:
-            continue
-
-        if shape_name and shape.name != shape_name:
-            continue
-
-        if alt_text and shape.alternative_text != alt_text:
-            continue
-
-        # 💡 магия подмены blob
-        rId = shape._element.blipFill.blip.rEmbed
-        image_part = shape.part.related_part(rId)
-        image_part._blob = image_bytes
-        return True
-
-    raise ValueError("Picture placeholder not found on slide")
 
 def replace_picture(slide, shape_name: str, image_bytes: bytes) -> None:
     for shape in slide.shapes:
@@ -77,12 +44,64 @@ def replace_picture(slide, shape_name: str, image_bytes: bytes) -> None:
 
     raise ValueError(f"Shape '{shape_name}' not found on slide")
 
+def _find_shape_by_name(slide, name: str):
+    for shape in slide.shapes:
+        if shape.name == name:
+            return shape
+    #raise ValueError(f"Shape '{name}' not found on slide")
+
+def fill_attributes(slide, attributes: dict[str, object]) -> None:
+    """
+    Меняет текст в фигурах по shape.name, сохраняя форматирование.
+    Стратегия:
+      - если есть runs: пишем весь текст в первый run (стиль сохраняется),
+        остальные runs очищаем (чтобы не оставались хвосты старого текста)
+      - если runs нет: используем tf.text (это может создать default-стиль,
+        но это крайний случай — лучше сделать в шаблоне хотя бы 1 run)
+    """
+    for shape_name, value in attributes.items():
+        text = "Нет данных" if value is None else str(value)
+        shape = _find_shape_by_name(slide, shape_name)
+        if not shape:
+            continue
+
+        if not shape.has_text_frame:
+            # если вдруг shape не текстовый — пропусти или брось исключение
+            raise ValueError(f"Shape '{shape_name}' has no text_frame")
+
+        tf = shape.text_frame
+        if not tf.paragraphs:
+            tf.text = text
+            continue
+
+        # Берём первый параграф
+        p0 = tf.paragraphs[0]
+
+        # Если в параграфе уже есть runs — сохраняем стиль первого run
+        if p0.runs:
+            p0.runs[0].text = text
+            # очищаем остальные runs в первом параграфе
+            for r in p0.runs[1:]:
+                r.text = ""
+
+            # очищаем текст во всех остальных параграфах (если они были)
+            for p in tf.paragraphs[1:]:
+                for r in p.runs:
+                    r.text = ""
+        else:
+            # В параграфе нет runs: создадим один run (стиль может быть дефолтным)
+            run = p0.add_run()
+            run.text = text
+
 class PresentationCreator():
     PRESENTATION_TEMPLATE = Presentation("d:/Angular/skolgis-backend/src/assets/slide_sample.pptx")
 
     def __init__(self, project_ids: List[int]):
         self.project_ids = project_ids
         self.skolkovo_gdf = read_postgis("SELECT * FROM skolkovo_layers.skolkovo_boundaries")
+
+        fields = FieldAlias()
+        self.columns_dict = fields.get_field_aliases(orient="dict")
 
     @timeit
     def render_project_map_png(self, obj_gdf: gpd.GeoDataFrame) -> bytes:
@@ -177,16 +196,21 @@ class PresentationCreator():
             "attributes": { (row, col): "text", ... }
           }
         """
-        obj_gdf = read_postgis(f"SELECT * FROM skolkovo_layers.layer_9 where id = {project_id}")
+        obj_gdf = read_postgis(f"""
+            SELECT *, round((ST_Area(ST_Transform(ST_MakeValid(geom), 4326)::geography)/ 10000)::numeric,  3) as calc_area 
+            FROM skolkovo_layers.layer_9
+            WHERE id = {project_id}
+        """)
         map_bytes = self.render_project_map_png(obj_gdf)
 
-        fields = FieldAlias()
-        columns_dict = fields.get_field_aliases(orient="dict")
-        obj_gdf = obj_gdf.rename(columns=columns_dict)
-        
+        #obj_gdf = obj_gdf.rename(columns=self.columns_dict)
+
+        attrs = obj_gdf.to_dict(orient="records")[0]
+        attrs['year_entered'] = int(attrs['year_entered']) if attrs['year_entered'] is not None else None
+
         return {
             "map_bytes": map_bytes,
-            "attributes": obj_gdf.to_dict(),
+            "attributes": attrs,
         }
     
     def _clone_slide_template(self):
@@ -215,6 +239,24 @@ class PresentationCreator():
             new_slide.shapes._spTree.insert_element_before(new_el, "p:extLst")
 
         return new_slide
+    
+    def _delete_slide(self, slide_index: int) -> None:
+        """
+        Удаляет слайд по индексу.
+        """
+        slide_id_list = self.PRESENTATION_TEMPLATE.slides._sldIdLst  # pylint: disable=protected-access
+        slide_ids = list(slide_id_list)
+
+        if slide_index < 0 or slide_index >= len(slide_ids):
+            raise IndexError("slide_index out of range")
+
+        slide_id = slide_ids[slide_index]
+        rId = slide_id.rId
+
+        # remove from slide list
+        slide_id_list.remove(slide_id)
+        # drop related part
+        self.PRESENTATION_TEMPLATE.part.drop_rel(rId)
 
     def fill_presentation(self):
         # 1) Параллельно готовим всё тяжёлое
@@ -225,6 +267,9 @@ class PresentationCreator():
             slide = self._clone_slide_template()
             # находим картинку и подменяем её blob — без изменения рамки
             replace_picture(slide, "MapImage", payload["map_bytes"])
+            fill_attributes(slide, payload['attributes'])
+
+        self._delete_slide(1)
 
         buf = BytesIO()
         self.PRESENTATION_TEMPLATE.save(buf)
