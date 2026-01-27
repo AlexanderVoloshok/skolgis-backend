@@ -101,14 +101,9 @@ def show_attachment(filename: str):
 
 @app.route(f'{Config.APP_ROOT}/presentation', methods=['POST'])
 def create_pptx():
-    # Проверяем, что файл есть
-    if 'image' not in request.files:
-        return {"error": "No image uploaded"}, 400
-
-    project_ids: list = request.data['projects']
+    project_ids: list = json.loads(request.data)['projects']
     pres = PresentationCreator(project_ids)
     buf = pres.fill_presentation()
-
     return send_file(
         buf,
         mimetype="application/vnd.openxmlformats-officedocument.presentationml.presentation",

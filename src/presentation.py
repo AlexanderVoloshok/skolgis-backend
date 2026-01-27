@@ -7,8 +7,9 @@ from pyproj import datadir
 proj_dir = datadir.get_data_dir()
 os.environ["PROJ_DATA"] = proj_dir
 os.environ["PROJ_LIB"] = proj_dir
-print('proj_dir', proj_dir)
 
+import matplotlib
+matplotlib.use("Agg", force=True)
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
@@ -16,7 +17,7 @@ import contextily as cx
 import geopandas as gpd
 from copy import deepcopy
 from pptx import Presentation
-from concurrent.futures import ThreadPoolExecutor
+from pptx.enum.shapes import MSO_SHAPE_TYPE
 from io import BytesIO
 from typing import Tuple, List
 from src.aliases import FieldAlias
@@ -24,25 +25,29 @@ from src.sql_utils import read_postgis
 from src.utils import timeit
 
 
+def iter_shapes_recursive(shapes):
+    for sh in shapes:
+        yield sh
+        # GroupShape имеет shape_type == GROUP и внутри есть .shapes
+        if sh.shape_type == MSO_SHAPE_TYPE.GROUP:
+            yield from iter_shapes_recursive(sh.shapes)
+
 def replace_picture(slide, shape_name: str, image_bytes: bytes) -> None:
-    for shape in slide.shapes:
-        if shape.name == shape_name:
+    for shape in iter_shapes_recursive(slide.shapes):
+        if shape.shape_type != MSO_SHAPE_TYPE.PICTURE:
+            continue
+
+        if shape.name == shape_name or getattr(shape, "alternative_text", "") == shape_name:
             left, top, width, height = shape.left, shape.top, shape.width, shape.height
 
-            # удалить старую фигуру (заглушку)
+            # удалить старую фигуру
             shape.element.getparent().remove(shape.element)
 
-            # вставить новую — создаст корректные rels/rId
-            slide.shapes.add_picture(
-                BytesIO(image_bytes),
-                left,
-                top,
-                width=width,
-                height=height
-            )
+            # вставить новую (создаст корректные rels/rId)
+            slide.shapes.add_picture(BytesIO(image_bytes), left, top, width=width, height=height)
             return
 
-    raise ValueError(f"Shape '{shape_name}' not found on slide")
+    raise ValueError(f"Picture '{shape_name}' not found on slide (by name/alt_text).")
 
 def _find_shape_by_name(slide, name: str):
     for shape in slide.shapes:
@@ -98,7 +103,7 @@ class PresentationCreator():
 
     def __init__(self, project_ids: List[int]):
         self.project_ids = project_ids
-        self.skolkovo_gdf = read_postgis("SELECT * FROM skolkovo_layers.skolkovo_boundaries")
+        self.skolkovo_gdf = read_postgis("SELECT * FROM skolkovo_layers.layer_10")
 
         fields = FieldAlias()
         self.columns_dict = fields.get_field_aliases(orient="dict")
@@ -139,7 +144,7 @@ class PresentationCreator():
         ax.set_ylim(miny - pad_y, maxy + pad_y)
 
         # ---------- СПУТНИКОВАЯ OPEN-SOURCE ПОДЛОЖКА ----------
-        #cx.add_basemap(ax, source=cx.providers.NASAGIBS.BlueMarble, crs=target_crs, attribution=False, zorder=0)
+        cx.add_basemap(ax, source=cx.providers.NASAGIBS.BlueMarble, crs=target_crs, attribution=False, zorder=0)
 
         obj.plot(ax=ax, facecolor=obj_facecolor, edgecolor=obj_edgecolor, linewidth=obj_lw, alpha=0.35, zorder=20)
         # Контур поверх — чтобы был насыщенный
@@ -270,12 +275,10 @@ class PresentationCreator():
             fill_attributes(slide, payload['attributes'])
 
         self._delete_slide(1)
-
         buf = BytesIO()
         self.PRESENTATION_TEMPLATE.save(buf)
         buf.seek(0)
-
-        return buf.getvalue()
+        return buf
 
 
 
