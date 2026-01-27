@@ -21,10 +21,10 @@ LAYERS_META.reflect(bind=ENGINE)
 
 class Config():
     ALLOWED_UPLOAD_FILETYPES = ('geojson', 'gpkg', 'kml', 'sld',)
-    ALLOWED_EXPORT_FILETYPES = ('geojson', 'gpkg', 'kml', 'xml', 'pdf', 'docx', 'txt', 'pptx', 
+    ALLOWED_EXPORT_FILETYPES = ('xlsx', 'xls', 'geojson', 'gpkg', 'kml', 'xml', 'pdf', 'docx', 'txt', 'pptx', 
       'png', 'jpg', 'jpeg','gif','webp','tif', 'tiff',
       'zip', 'rar', '7z')
-    ALLOWED_ATTACHMENT_FILETYPES = ('xml', 'pdf', 'docx', 'txt', 'pptx', 
+    ALLOWED_ATTACHMENT_FILETYPES = ('xlsx', 'xls', 'xml', 'pdf', 'docx', 'txt', 'pptx', 
       'png', 'jpg', 'jpeg','gif','webp','tif', 'tiff',
       'zip', 'rar', '7z')
     APP_ROOT = '/api_skolkovo'

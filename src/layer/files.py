@@ -1,6 +1,8 @@
 import os
 import uuid
 import mimetypes
+import unicodedata
+from unidecode import unidecode
 from werkzeug.utils import secure_filename
 from pathlib import Path
 from src.config import Config, MAIN_META
@@ -67,15 +69,29 @@ def remove_file(layer_name: str, fid: int, filename: str):
 
 def _unique_store_name(original: str) -> str:
     """
-    Возвращает уникальное имя вида {stem}__{uuid4}.{ext}
-    чтобы одинаковые имена не конфликтовали в пределах одного объекта.
+    Возвращает уникальное имя вида {stem}__{uuid4}.{ext}.
+    - Расширение берём из исходного имени (до санитизации), чтобы не терялось на кириллице.
+    - Стем санитизируем через secure_filename; если он опустел (весь был не-ASCII),
+      делаем запасной вариант.
     """
-    original = secure_filename(original) or "file"
-    stem, dot, ext = original.rpartition(".")
-    if not dot:  # нет точки
-        stem, ext = original, ""
+    # только базовое имя, без путей
+    base = Path(original).name
+    # нормализация Unicode (на всякий случай для macOS/NFS)
+    base = unicodedata.normalize("NFC", base)
+
+    stem, ext = os.path.splitext(base)  # ext с точкой либо пустая строка
+    ext = ext.lower()                   # .DOCX -> .docx
+
+    # санитизируем только stem
+    safe_stem = secure_filename(stem)
+
+    if not safe_stem:                   # имя целиком кириллица/символы → secure_filename всё выкинул
+        # запасной вариант: транслитерация, если есть unidecode, иначе "file"
+        try:
+            safe_stem = secure_filename(unidecode(stem)) or "file"
+        except Exception:
+            safe_stem = "file"
+
     uid = uuid.uuid4().hex
-    if ext:
-        return f"{stem}__{uid}.{ext}"
-    return f"{stem}__{uid}"
+    return f"{safe_stem}__{uid}{ext}"
 
