@@ -6,8 +6,10 @@ import mimetypes
 from flask import Flask, request, send_from_directory, abort, jsonify, send_file
 from flask_cors import CORS
 
+import sys
+sys.path.insert(1, 'd:/Angular/skolgis-backend')
 
-from src.presentation import fill_presentation
+from src.presentation import PresentationCreator
 from src.geom_utils import compute_polygons
 from src.config import Config
 from src.utils import get_logger
@@ -97,21 +99,21 @@ def show_attachment(filename: str):
 #    return send_from_directory(Config.TILES_DIR, path)
 
 
-@app.route(f'{Config.APP_ROOT}/pptx', methods=['POST'])
+@app.route(f'{Config.APP_ROOT}/presentation', methods=['POST'])
 def create_pptx():
     # Проверяем, что файл есть
     if 'image' not in request.files:
         return {"error": "No image uploaded"}, 400
 
-    image_file = request.files['image']
-
-    pptx_io = pptx_from_image(image_file)
+    project_ids: list = request.data['projects']
+    pres = PresentationCreator(project_ids)
+    buf = pres.fill_presentation()
 
     return send_file(
-        pptx_io,
-        mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        buf,
+        mimetype="application/vnd.openxmlformats-officedocument.presentationml.presentation",
         as_attachment=True,
-        download_name='Карта.pptx'
+        download_name=f"Проект.pptx",
     )
 
 app.register_blueprint(layers_bp, url_prefix=f'/{Config.APP_ROOT}/layer')
