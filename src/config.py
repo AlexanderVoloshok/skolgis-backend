@@ -14,9 +14,9 @@ DB_URI = f"postgresql://{user}:{pw}@{host}:{port}/{db}"
 
 ENGINE = create_engine(DB_URI, pool_size=30)
 MAIN_META = MetaData(schema="skolkovo_general")
-MAIN_META.reflect(bind=ENGINE)
+MAIN_META.reflect(bind=ENGINE, views=True)
 LAYERS_META = MetaData(schema="skolkovo_layers")
-LAYERS_META.reflect(bind=ENGINE)
+LAYERS_META.reflect(bind=ENGINE, views=True)
 
 
 class Config():
