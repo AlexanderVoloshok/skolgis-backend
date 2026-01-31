@@ -40,7 +40,7 @@ class User():
         """
         
         df = read_sql("""
-            SELECT id, source, table_name, alias, layers_type_id, geom_type, style_json, is_on
+            SELECT id, source, table_name, alias, layers_type_id, geom_type, style_json, is_on, has3D
             FROM skolkovo_general.layers WHERE layers_type_id in (1,3)
         """)
         return df.to_json(orient="records")

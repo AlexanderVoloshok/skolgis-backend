@@ -65,6 +65,7 @@ def fill_attributes(slide, attributes: dict[str, object]) -> None:
         но это крайний случай — лучше сделать в шаблоне хотя бы 1 run)
     """
     for shape_name, value in attributes.items():
+        value = round(value, 1) if type(value) == float else value # Все числа округляем до 1 знака
         text = "Нет данных" if value is None else str(value)
         shape = _find_shape_by_name(slide, shape_name)
         if not shape:
@@ -109,7 +110,7 @@ class PresentationCreator():
         self.columns_dict = fields.get_field_aliases(orient="dict")
 
     @timeit
-    def render_project_map_png(self, obj_gdf: gpd.GeoDataFrame) -> bytes:
+    def render_project_map_png(self, obj_gdf: gpd.GeoDataFrame, surrounding: gpd.GeoDataFrame) -> bytes:
         """
         Рендерит карту:
           - ESRI спутник (World Imagery)
@@ -130,6 +131,7 @@ class PresentationCreator():
         target_crs = "EPSG:3857"
         sk = self.skolkovo_gdf.to_crs(target_crs)
         obj = obj_gdf.to_crs(target_crs)
+        surrounding = surrounding.to_crs(target_crs)
 
         # bounds по Сколково + паддинг
         minx, miny, maxx, maxy = sk.total_bounds
@@ -144,11 +146,15 @@ class PresentationCreator():
         ax.set_ylim(miny - pad_y, maxy + pad_y)
 
         # ---------- СПУТНИКОВАЯ OPEN-SOURCE ПОДЛОЖКА ----------
-        cx.add_basemap(ax, source=cx.providers.NASAGIBS.BlueMarble, crs=target_crs, attribution=False, zorder=0)
+        cx.add_basemap(ax, source=cx.providers.NASAGIBS.BlueMarble, attribution=False, zorder=0)
 
         obj.plot(ax=ax, facecolor=obj_facecolor, edgecolor=obj_edgecolor, linewidth=obj_lw, alpha=0.35, zorder=20)
         # Контур поверх — чтобы был насыщенный
         obj.boundary.plot(ax=ax, color=obj_edgecolor, linewidth=obj_lw, alpha=1.0, zorder=25)
+
+        surrounding.plot(ax=ax, facecolor="#9a9a9a", edgecolor="#707070", linewidth=obj_lw, alpha=0.35, zorder=20)
+        # Контур поверх — чтобы был насыщенный
+        surrounding.boundary.plot(ax=ax, color="#9a9a9a", linewidth=obj_lw, alpha=1.0, zorder=25)
 
         sk.boundary.plot(ax=ax, color="red", linewidth=2.6, zorder=18)
 
@@ -158,6 +164,7 @@ class PresentationCreator():
         handles = [
             Line2D([0], [0], color="red", lw=2.6, label="Границы ИЦ Сколково"),
             Patch(facecolor=obj_facecolor, edgecolor=obj_edgecolor, linewidth=obj_lw, alpha=0.35, label="Границы проекта"),
+            Patch(facecolor="#9a9a9a", edgecolor="#707070", linewidth=obj_lw, alpha=0.35, label="Окружение"),
         ]
         ax.legend(
             handles=handles, loc="upper left", fontsize=9, framealpha=0.9, borderpad=0.6, labelspacing=0.5, handlelength=2.2
@@ -203,15 +210,34 @@ class PresentationCreator():
         """
         obj_gdf = read_postgis(f"""
             SELECT *, round((ST_Area(ST_Transform(ST_MakeValid(geom), 4326)::geography)/ 10000)::numeric,  3) as calc_area 
-            FROM skolkovo_layers.layer_9
-            WHERE id = {project_id}
-        """)
-        map_bytes = self.render_project_map_png(obj_gdf)
+            FROM skolkovo_layers.projects_full
+            WHERE project_id = '{project_id}'
+        """, crs=4326)
+        surrounding = read_postgis(f"""
+            WITH target AS (
+              SELECT project_id, name, ST_Transform(ST_MakeValid(geom), 4326) AS g4326 FROM skolkovo_layers.projects_full
+              WHERE project_id = '{project_id}'
+            )
+            SELECT p.project_id, p.name, p.geom, round((ST_Area(ST_Transform(ST_MakeValid(p.geom), 4326)::geography) / 10000)::numeric, 3) AS calc_area,
+              -- дистанция в метрах
+              round(
+                ST_Distance(
+                  ST_Transform(ST_MakeValid(p.geom), 4326)::geography,
+                  t.g4326::geography
+                )::numeric
+              , 3) AS distance_m
+            FROM skolkovo_layers.projects_full p
+            CROSS JOIN target t
+            WHERE p.project_id <> t.project_id
+            ORDER BY distance_m
+            LIMIT 2;
+        """, crs=4326)
+        map_bytes = self.render_project_map_png(obj_gdf, surrounding)
 
         #obj_gdf = obj_gdf.rename(columns=self.columns_dict)
 
         attrs = obj_gdf.to_dict(orient="records")[0]
-        attrs['year_entered'] = int(attrs['year_entered']) if attrs['year_entered'] is not None else None
+        #attrs['year_entered'] = int(attrs['year_entered']) if attrs['year_entered'] is not None else None
 
         return {
             "map_bytes": map_bytes,
