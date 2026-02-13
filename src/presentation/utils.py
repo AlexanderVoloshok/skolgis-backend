@@ -1,11 +1,11 @@
 import re
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 from src.config import Config
 
 CAD_RE = re.compile(r"\b\d{2}:\d{2}:\d{1,7}:\d+\b")
 
-def extract_cadastral_numbers(text: str, unique: bool = True) -> list[str]:
+def extract_cadastral_numbers(text: str, unique: bool = True) -> List[str]:
     nums = CAD_RE.findall(text or "")
     if unique:
         # уникальные, сохраняя порядок
