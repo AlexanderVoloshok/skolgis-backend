@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sys
+sys.path.insert(1, 'd:/Angular/skolgis-backend')
 
 import os
 from pyproj import datadir
@@ -20,10 +22,13 @@ from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from io import BytesIO
 from typing import Tuple, List
+from src.config import MAIN_META
 from src.aliases import FieldAlias
+from src.presentation.utils import extract_cadastral_numbers, read_file_bytes
 from src.sql_utils import read_postgis
 from src.utils import timeit
 
+files_table = MAIN_META.tables['skolkovo_general.file_attachments'] 
 
 def iter_shapes_recursive(shapes):
     for sh in shapes:
@@ -33,6 +38,16 @@ def iter_shapes_recursive(shapes):
             yield from iter_shapes_recursive(sh.shapes)
 
 def replace_picture(slide, shape_name: str, image_bytes: bytes) -> None:
+    """Заменяет изображение на слайде по имени формы
+
+    Args:
+        slide (_type_): слайд
+        shape_name (str): имя формы
+        image_bytes (bytes): изображение
+
+    Raises:
+        ValueError: _description_
+    """
     for shape in iter_shapes_recursive(slide.shapes):
         if shape.shape_type != MSO_SHAPE_TYPE.PICTURE:
             continue
@@ -100,7 +115,7 @@ def fill_attributes(slide, attributes: dict[str, object]) -> None:
             run.text = text
 
 class PresentationCreator():
-    PRESENTATION_TEMPLATE = Presentation("src/assets/slide_sample.pptx")
+    PRESENTATION_TEMPLATE = Presentation("d:/Angular/skolgis-backend/src/assets/slide_sample.pptx")
 
     def __init__(self, project_ids: List[int]):
         self.project_ids = project_ids
@@ -146,7 +161,7 @@ class PresentationCreator():
         ax.set_ylim(miny - pad_y, maxy + pad_y)
 
         # ---------- СПУТНИКОВАЯ OPEN-SOURCE ПОДЛОЖКА ----------
-        cx.add_basemap(ax, source=cx.providers.OpenStreetMap.Mapnik, attribution=False, zorder=0)
+        #cx.add_basemap(ax, source=cx.providers.OpenStreetMap.Mapnik, attribution=False, zorder=0)
 
         obj.plot(ax=ax, facecolor=obj_facecolor, edgecolor=obj_edgecolor, linewidth=obj_lw, alpha=0.35, zorder=20)
         # Контур поверх — чтобы был насыщенный
@@ -178,10 +193,6 @@ class PresentationCreator():
         plt.close(fig)
         buf.seek(0)
         png_bytes = buf.read()
-
-        #out_path = Path('d:/Angular/skolgis-backend/output.png')
-        #out_path.parent.mkdir(parents=True, exist_ok=True)
-        #out_path.write_bytes(png_bytes)
 
         return png_bytes
 
@@ -230,18 +241,28 @@ class PresentationCreator():
             CROSS JOIN target t
             WHERE p.project_id <> t.project_id
             ORDER BY distance_m
-            LIMIT 2;
+            LIMIT 4;
         """, crs=4326)
         map_bytes = self.render_project_map_png(obj_gdf, surrounding)
-
-        #obj_gdf = obj_gdf.rename(columns=self.columns_dict)
+        project_render_bytes = read_file_bytes()
 
         attrs = obj_gdf.to_dict(orient="records")[0]
-        #attrs['year_entered'] = int(attrs['year_entered']) if attrs['year_entered'] is not None else None
+        attrs['year_entered'] = None #int(attrs['year_entered']) if attrs['year_entered'] is not None else None
+
+        cadnumbers = extract_cadastral_numbers(attrs['zu_number'])
+        if len(cadnumbers) <= 5:
+            attrs['zu_number'] = ", ".join(cadnumbers)
+            attrs['cad_notes'] = ""
+        else:
+            attrs['zu_number'] = f"{len(cadnumbers)} участков*"
+            attrs['cad_notes'] = "Состав проекта: " + ", ".join(cadnumbers)
 
         return {
             "map_bytes": map_bytes,
+            'project_render': project_render_bytes,
+            #'surrounding_renders': [read_file_bytes(file) for file in ],
             "attributes": attrs,
+            "surrounding": surrounding.to_dict(orient="records")
         }
     
     def _clone_slide_template(self):
@@ -299,6 +320,8 @@ class PresentationCreator():
             # находим картинку и подменяем её blob — без изменения рамки
             replace_picture(slide, "MapImage", payload["map_bytes"])
             fill_attributes(slide, payload['attributes'])
+            if payload['project_render'] is not None:
+                replace_picture(slide, "ProjectRender", payload['project_render'])
 
         self._delete_slide(1)
         buf = BytesIO()

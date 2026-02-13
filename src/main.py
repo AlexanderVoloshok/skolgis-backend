@@ -9,7 +9,7 @@ from flask_cors import CORS
 import sys
 sys.path.insert(1, 'd:/Angular/skolgis-backend')
 
-from src.presentation import PresentationCreator
+from src.presentation.presentation import PresentationCreator
 from src.geom_utils import compute_polygons
 from src.config import Config
 from src.utils import get_logger
