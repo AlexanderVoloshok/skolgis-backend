@@ -115,7 +115,7 @@ def fill_attributes(slide, attributes: dict[str, object]) -> None:
             run.text = text
 
 class PresentationCreator():
-    PRESENTATION_TEMPLATE = Presentation("d:/Angular/skolgis-backend/src/assets/slide_sample.pptx")
+    PRESENTATION_TEMPLATE = Presentation("src/assets/slide_sample.pptx")
 
     def __init__(self, project_ids: List[int]):
         self.project_ids = project_ids
