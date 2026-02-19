@@ -496,19 +496,9 @@ class Layer():
         q = select(cols.alias, cols.layers_type_id).where(cols.table_name == name)
         row = execute_sql_query(q).fetchall()
         if len(row) == 0:
-            raise LayerNotExistException('layer does not exist')
+            #raise LayerNotExistException('layer does not exist')
+            return {}
         return {
             'alias': row[0][0],
             'layers_type_id': row[0][1]
         }
-           
-
-    def _get_where_condition(self, filterField: str, filterValue):
-        if filterField is not None and filterField != '':
-            if filterValue != '':
-                col_type = self.columns[filterField]
-                if col_type in ('INTEGER', 'DOUBLE_PRECISION'):
-                    return f" WHERE {filterField} = {filterValue}"
-                else:
-                    return f" WHERE lower({filterField}) like '%%{filterValue.lower()}%%'"
-        return ""
