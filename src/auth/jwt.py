@@ -1,16 +1,16 @@
 import jwt
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from flask import request, jsonify, Request
 from jwt import ExpiredSignatureError, InvalidTokenError
 from src.config import Config
 from src.consts import UserRoles
 
 
-def create_access_token(identity, role: UserRoles, expires_delta=timedelta(1*3600*24)):
+def create_access_token(identity, role: UserRoles):
     payload = {
         "id": identity,
         "role": role,
-        "exp": datetime.now(timezone.utc) + expires_delta,
+        "exp": datetime.now(timezone.utc) + Config.JWT_LIFETIME,
     }
     return jwt.encode(payload, Config.SECRET_KEY, algorithm=Config.ENCRYPT_ALG)
 
@@ -19,6 +19,7 @@ def check_token_validity(token: str):
     try:
         # Decode the token
         payload = jwt.decode(token, Config.SECRET_KEY, algorithms=[Config.ENCRYPT_ALG])
+        #TODO: проверить, не истёк ли токен
         return {"valid": True, "payload": payload}
     except ExpiredSignatureError:
         return {"valid": False, "error": "Token has expired"}

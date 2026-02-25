@@ -1,3 +1,4 @@
+from functools import wraps
 from flask import request, jsonify
 from src.consts import UserRoles
 from src.auth.jwt import get_jwt_identity
@@ -5,7 +6,6 @@ from src.auth.jwt import get_jwt_identity
 
 def admin_only(fn):
     """Пропускает только если в токене роль администратора"""
-    from functools import wraps
 
     @wraps(fn)
     def wrapper(*args, **kwargs):

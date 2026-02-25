@@ -2,13 +2,13 @@ import time
 import os
 import json
 import traceback
-import mimetypes
 from flask import Flask, request, send_from_directory, abort, jsonify, send_file
 from flask_cors import CORS
 
 import sys
 sys.path.insert(1, 'd:/Angular/skolgis-backend')
 
+from src.auth.jwt import jwt_required
 from src.presentation.presentation import PresentationCreator
 from src.geom_utils import compute_polygons
 from src.config import Config
@@ -18,18 +18,13 @@ app = Flask(__name__)
 cors = CORS(app, supports_credentials=True)
 
 app.config['MAX_CONTENT_LENGTH'] = Config.MAX_CONTENT_LENGTH
+#app.json.sort_keys = False
 
 logger = get_logger(__name__)
 
+from src.auth.views import auth_bp
 from src.layer.views import layers_bp
 from src.user.views import user_bp
-
-# правильные MIME-типы
-mimetypes.add_type("application/json", ".json")
-mimetypes.add_type("application/octet-stream", ".b3dm")
-mimetypes.add_type("model/gltf-binary", ".glb")
-mimetypes.add_type("model/gltf+json", ".gltf")
-mimetypes.add_type("application/octet-stream", ".bin")
 
 
 @app.before_request
@@ -66,13 +61,12 @@ def hello():
     return "Welcome to Skolkovo GIS"
 
 @app.route(f'{Config.APP_ROOT}/geometry/merge_polygons', methods=['POST'])
-#@jwt_required
+@jwt_required
 def compute_geometry():
     data = json.loads(request.data)['polygons']
     return compute_polygons(data[0], data[1])
 
 
-#TODO: генерить файл и отдавать можно на лету без сохранения на диск
 @app.route(f'{Config.APP_ROOT}/file/<filename>', methods=['GET'])
 def return_file(filename: str):
     if not any(filename.endswith(el) for el in Config.ALLOWED_EXPORT_FILETYPES):
@@ -83,8 +77,9 @@ def return_file(filename: str):
     except FileNotFoundError:
         abort(404)
 
-#TODO: разные фичи, слои и пользователи могут содержать вложения с одинаковыми именами. Это надо предусмотреть.
+
 @app.route(f'{Config.APP_ROOT}/attachment/<filename>', methods=['GET'])
+@jwt_required
 def show_attachment(filename: str):
     if not any(filename.endswith(el) for el in Config.ALLOWED_ATTACHMENT_FILETYPES):
         abort(404)
@@ -94,12 +89,8 @@ def show_attachment(filename: str):
         abort(404)
 
 
-#@app.get(f'{Config.APP_ROOT}/3dtiles/<path:path>')
-#def tiles(path):
-#    return send_from_directory(Config.TILES_DIR, path)
-
-
 @app.route(f'{Config.APP_ROOT}/presentation', methods=['POST'])
+@jwt_required
 def create_pptx():
     project_ids: list = json.loads(request.data)['projects']
     pres = PresentationCreator(project_ids)
@@ -111,6 +102,7 @@ def create_pptx():
         download_name=f"Проект.pptx",
     )
 
+app.register_blueprint(auth_bp, url_prefix=f'/{Config.APP_ROOT}/auth')
 app.register_blueprint(layers_bp, url_prefix=f'/{Config.APP_ROOT}/layer')
 app.register_blueprint(user_bp, url_prefix=f'/{Config.APP_ROOT}/user')
 

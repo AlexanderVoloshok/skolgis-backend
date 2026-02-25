@@ -1,5 +1,6 @@
 import json
 from flask import Blueprint, request
+from src.auth.jwt import verify_jwt_before_request
 from src.layer.layer import Layer
 from src.layer.files import attatch_file, remove_file
 from src.user.user import User
@@ -8,6 +9,13 @@ from src.validation import FeaturesSchema, valid_id, valid_file, validation_chai
 from src.consts import RESERVED_WORDS
 
 layers_bp = Blueprint('layer', __name__)
+
+# Apply jwt check to all routes of layer blueprint
+@layers_bp.before_request
+def check_jwt():
+    if request.method == "OPTIONS":
+        return
+    return verify_jwt_before_request(request)
 
 
 @layers_bp.route('/<layer_name>/features', methods=['GET'])
@@ -35,23 +43,6 @@ def get_features_in_bounds(layer_name: str):
     layer = Layer(layer_name)
     return layer.get_features_in_bounds(bounds)
     
-
-@layers_bp.route('/upload', methods=['POST'])
-@validation_chain([valid_file])
-def upload_layer():
-    layers_type_id = 1 #request.args.get('layers_type_id')
-
-    for f in request.files.items():
-        filename = f[1].filename       
-        data = {
-            'source': filename,
-            'alias': f'{filename.split(".")[0]}', 
-            'layers_type_id': int(layers_type_id)
-        }
-        upload_result = Layer.upload(f[1], data)
-
-    return upload_result
-
 
 @layers_bp.route('/<layer_name>/extent', methods=['GET'])
 def get_layer_extent(layer_name: str):

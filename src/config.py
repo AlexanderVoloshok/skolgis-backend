@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, MetaData
+from datetime import timedelta
 from pathlib import Path
 
 env_path = Path(__file__).parent.parent / '.env'
@@ -29,6 +30,7 @@ class Config():
       'zip', 'rar', '7z')
     APP_ROOT = '/api_skolkovo'
     SECRET_KEY = os.getenv('SECRET_KEY')
+    JWT_LIFETIME = timedelta(days=7)
     UPLOAD_FOLDER = os.path.dirname(os.path.realpath(__file__)) + '/files'
 
     GEOSERVER_ROOT = os.getenv('PROXY_BASE_URL', 'http://89.223.68.75/geoserver')
@@ -38,8 +40,6 @@ class Config():
     GEOSERVER_STORE_NAME = os.getenv('GEOSERVER_STORE_NAME')
 
     #TODO: вынести sql-схемы в константы
-
-    #TILES_DIR = os.path.dirname(os.path.realpath(__file__)) + '/assets/3dtiles'
     
     ENCRYPT_ALG = "HS256"
     MAX_CONTENT_LENGTH = 1 * 1024 * 1024 * 1024 # 1 GB

@@ -2,12 +2,19 @@ import json
 from flask import Blueprint, request, jsonify
 from src.user.user import User, get_users_list
 from src.auth.mail import send_invite_email
-from src.auth.jwt import get_jwt_identity
+from src.auth.jwt import verify_jwt_before_request, get_jwt_identity
 from src.admin.utils import admin_only
 from src.aliases import FieldAlias
 from src.consts import UserRoles
 
 user_bp = Blueprint('user', __name__)
+
+# Apply jwt check to all routes of user blueprint
+@user_bp.before_request
+def check_jwt():
+    if request.method == "OPTIONS":
+        return
+    return verify_jwt_before_request(request)
 
 
 @user_bp.route('/layers', methods=['GET'])
@@ -16,6 +23,7 @@ def get_user_layers():
 
 
 @user_bp.route('', methods=['GET'])
+@admin_only
 def users_list():
     return get_users_list()
 
@@ -33,7 +41,7 @@ def save_user_aliases():
 
 
 @user_bp.route("/new", methods=["POST"])
-#@admin_only
+@admin_only
 def add_user():
     """
     Создать пользователя.
@@ -64,7 +72,7 @@ def add_user():
 
 
 @user_bp.route("/<user_id>/invite", methods=["POST"])
-#@admin_only
+@admin_only
 def resend_invitation(user_id: str):
     """
     Переотправка приглашения: продлеваем inv_expires_at и шлём письмо заново.
@@ -95,15 +103,23 @@ def resend_invitation(user_id: str):
 
 
 @user_bp.route("/<user_id>", methods=["DELETE"])
-#@admin_only
+@admin_only
 def delete_user(user_id: str):
     """Удаление пользователя"""
     user = User(user_id)
     return user.remove()
 
 
+#@user_bp.route("/<user_id>/password", methods=["POST"])
+#def change_password(user_id: str):
+#    self_user_id = get_jwt_identity()['id']
+#    new_password = request.get_json(force=True).get("new_password")
+#    user = User(user_id)
+#    return user.set_password(new_password)
+
+
 @user_bp.route("/<user_id>/role", methods=["POST"])
-#@admin_only
+@admin_only
 def change_role(user_id: str):
     """
     Изменить роль пользователя.
@@ -113,7 +129,7 @@ def change_role(user_id: str):
     if new_role not in (UserRoles.VISITOR.value, UserRoles.EDITOR.value, UserRoles.ADMIN.value):
         return jsonify({"error": "Invalid role"}), 400
 
-    self_user_id = None#get_jwt_identity()['id']
+    self_user_id = get_jwt_identity()['id']
     if self_user_id == user_id:
         return jsonify({"status": "bad", "error": "Нельзя изменить роль самого себя"}), 400
     user = User(user_id)
