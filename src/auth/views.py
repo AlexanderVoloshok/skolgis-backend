@@ -27,7 +27,8 @@ def login():
     access_token = user.generate_auth_token()
     return jsonify({
         "access_token": access_token, 
-        "expires_in": str(datetime.now(timezone.utc) + Config.JWT_LIFETIME)
+        "expires_in": str(datetime.now(timezone.utc) + Config.JWT_LIFETIME),
+        "userinfo": user.get_info()
     }), 200
 
 
@@ -44,7 +45,6 @@ def logout():
 def check_auth():
     token = request.headers.get('Authorization')
     token_check = check_token_validity(token)
-    print(token, token_check)
     if not token_check['valid']:
         return {"status": "bad"}
     user = User(token_check['payload']['id'])

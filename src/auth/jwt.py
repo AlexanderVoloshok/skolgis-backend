@@ -1,5 +1,6 @@
 import jwt
 from datetime import datetime, timezone
+from functools import wraps
 from flask import request, jsonify, Request
 from jwt import ExpiredSignatureError, InvalidTokenError
 from src.config import Config
@@ -53,3 +54,21 @@ def get_jwt_identity():
         return
     decode = jwt.decode(token, Config.SECRET_KEY, algorithms=[Config.ENCRYPT_ALG])
     return decode
+
+
+def admin_only(fn):
+    """Пропускает только если в токене роль администратора"""
+
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        try:
+            claims = get_jwt_identity()
+        except Exception:
+            return jsonify({"error": "Invalid token"}), 401
+
+        role = claims.get("role")
+        if role != UserRoles.ADMIN.value:
+            return jsonify({"error": "Admin role required"}), 403
+
+        return fn(*args, **kwargs)
+    return wrapper

@@ -2,8 +2,7 @@ import json
 from flask import Blueprint, request, jsonify
 from src.user.user import User, get_users_list
 from src.auth.mail import send_invite_email
-from src.auth.jwt import verify_jwt_before_request, get_jwt_identity
-from src.admin.utils import admin_only
+from src.auth.jwt import verify_jwt_before_request, get_jwt_identity, admin_only
 from src.aliases import FieldAlias
 from src.consts import UserRoles
 
