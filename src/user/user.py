@@ -1,10 +1,9 @@
 import json
-from datetime import timedelta
 from flask import jsonify
 from werkzeug.security import check_password_hash, generate_password_hash
 from sqlalchemy import text, select, delete, update
 from sqlalchemy.dialects.postgresql import insert
-from src.config import MAIN_META, Config
+from src.config import MAIN_META
 from src.consts import UserRoles
 from src.user.utils import jsonb_set_stmt
 from src.auth.misc import password_hash_json, invite_payload_json

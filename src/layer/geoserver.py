@@ -36,7 +36,6 @@ def clear_geoserver_cache(name: str):
     """Очищает кэш слоя на geoserver
     """
     url = f"{Config.GEOSERVER_ROOT}/gwc/rest/seed/skolkovo_layers:{name}" #.json
-    print(url, Config.GEOSERVER_USER, Config.GEOSERVER_PWD)
     headers = {
         "Content-Type": "application/json"
     }

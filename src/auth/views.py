@@ -57,15 +57,10 @@ def check_auth():
 @jwt_required
 def return_userinfo():
     user_id = get_jwt_identity()
-    user = User(user_id)
-    new_token = user.generate_auth_token()
+    user = User(user_id['id'])
     userinfo = user.get_info()
     return {
-        'status': 'ok',
-        'user_info': {
-            "login": userinfo['login'],
-            "alias": userinfo['alias'],
-            "role": userinfo['role']
-        },
-        'access_token': new_token
+        "login": userinfo['login'],
+        "alias": userinfo['alias'],
+        "role": userinfo['role']
     }

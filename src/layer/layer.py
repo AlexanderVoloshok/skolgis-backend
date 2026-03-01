@@ -209,11 +209,10 @@ class Layer():
         Returns:
             int: id фичи
         """
-        #TODO: вынести кусок обработки геометрии, т.к. он идентичен с add_feature
         id = attrs['id']
         attrs = {k:v for k,v in attrs.items() if k not in ('id', 'calc_area', 'table_name')}
         if 'geom' in attrs.keys():
-            geometry = shape(attrs['geom']) #parse_geometry(attrs['geom'], attrs['geom']["type"])
+            geometry = shape(attrs['geom'])
             #reproject
             geom = reproject_to_wgs(geometry)
             attrs['geom'] = from_shape(geom)
