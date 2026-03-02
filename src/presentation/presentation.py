@@ -161,7 +161,7 @@ class PresentationCreator():
         ax.set_ylim(miny - pad_y, maxy + pad_y)
 
         # ---------- СПУТНИКОВАЯ OPEN-SOURCE ПОДЛОЖКА ----------
-        #cx.add_basemap(ax, source=cx.providers.OpenStreetMap.Mapnik, attribution=False, zorder=0)
+        cx.add_basemap(ax, source=cx.providers.OpenStreetMap.Mapnik, attribution=False, zorder=0)
 
         obj.plot(ax=ax, facecolor=obj_facecolor, edgecolor=obj_edgecolor, linewidth=obj_lw, alpha=0.35, zorder=20)
         # Контур поверх — чтобы был насыщенный
