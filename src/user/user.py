@@ -28,7 +28,8 @@ class User():
 
     def __init__(self, identity: str = None):
         self.identity = identity
-        self.role: UserRoles =  self.get_info()['role']
+        info = self.get_info()
+        self.role: UserRoles =  info['role'] if 'role' in info.keys() else UserRoles.VISITOR
 
     @classmethod
     def get_layers(cls):
@@ -170,6 +171,7 @@ class User():
         df = read_sql("""
             SELECT login, alias, role, state::text
             FROM skolkovo_general.users WHERE id = :id""", params={"id": self.identity})
+        
         if len(df) == 0:
             return {}
         return json.loads(df.to_json(orient="records", force_ascii=False))[0]
@@ -183,7 +185,9 @@ class User():
         """
         new_token = create_access_token(identity=self.identity, role=self.role)
         stmt = text("""
-            update skolkovo_general.users set state=jsonb_set(state::jsonb,'{"access_token"}', '"%s"', true) where id = '%s'
+            update skolkovo_general.users
+            set state=jsonb_set(coalesce(state::jsonb, '{}'::jsonb),'{"access_token"}', '"%s"', true)
+            where id = '%s'
         """ % (new_token, self.identity))
         execute_sql_and_commit(stmt)
 
