@@ -57,6 +57,8 @@ def check_auth():
 @jwt_required
 def return_userinfo():
     user_id = get_jwt_identity()
+    if user_id is None:
+        return {}
     user = User(user_id['id'])
     userinfo = user.get_info()
     return {

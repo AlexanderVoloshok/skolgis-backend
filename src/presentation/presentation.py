@@ -244,12 +244,11 @@ class PresentationCreator():
             LIMIT 4;
         """, crs=4326)
         map_bytes = self.render_project_map_png(obj_gdf, surrounding)
-        project_render_bytes = read_file_bytes()
+        #project_render_bytes = read_file_bytes()
 
         attrs = obj_gdf.to_dict(orient="records")[0]
         attrs['year_entered'] = None #int(attrs['year_entered']) if attrs['year_entered'] is not None else None
-
-        cadnumbers = extract_cadastral_numbers(attrs['zu_number'])
+        cadnumbers = [] #extract_cadastral_numbers(attrs['zu_number'])
         if len(cadnumbers) <= 5:
             attrs['zu_number'] = ", ".join(cadnumbers)
             attrs['cad_notes'] = ""
@@ -259,7 +258,7 @@ class PresentationCreator():
 
         return {
             "map_bytes": map_bytes,
-            'project_render': project_render_bytes,
+            #'project_render': project_render_bytes,
             #'surrounding_renders': [read_file_bytes(file) for file in ],
             "attributes": attrs,
             "surrounding": surrounding.to_dict(orient="records")
@@ -320,8 +319,8 @@ class PresentationCreator():
             # находим картинку и подменяем её blob — без изменения рамки
             replace_picture(slide, "MapImage", payload["map_bytes"])
             fill_attributes(slide, payload['attributes'])
-            if payload['project_render'] is not None:
-                replace_picture(slide, "ProjectRender", payload['project_render'])
+            #if payload['project_render'] is not None:
+            #    replace_picture(slide, "ProjectRender", payload['project_render'])
 
         self._delete_slide(1)
         buf = BytesIO()
