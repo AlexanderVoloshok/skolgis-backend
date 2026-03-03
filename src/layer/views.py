@@ -5,7 +5,7 @@ from src.layer.layer import Layer
 from src.layer.files import attatch_file, remove_file
 from src.user.user import User
 from src.config import Config
-from src.validation import FeaturesSchema, valid_id, valid_file, validation_chain
+from src.validation import FeaturesSchema, valid_id, valid_file, validation_chain, can_edit_layer
 from src.consts import RESERVED_WORDS
 
 layers_bp = Blueprint('layer', __name__)
@@ -68,7 +68,7 @@ def export_layer(layer_name: str):
 
 
 @layers_bp.route('/<layer_name>/edit', methods=['POST'])
-@validation_chain([valid_id])
+@validation_chain([valid_id, can_edit_layer])
 def edit_layer(layer_name: str):
     data = json.loads(request.data)
     layer = Layer(layer_name)
@@ -76,6 +76,7 @@ def edit_layer(layer_name: str):
 
 
 @layers_bp.route('/<layer_name>/add', methods=['POST'])
+@validation_chain([can_edit_layer])
 def add_feature(layer_name: str):
     data = json.loads(request.data)
     layer = Layer(layer_name)
@@ -83,7 +84,7 @@ def add_feature(layer_name: str):
 
 
 @layers_bp.route('/<layer_name>/delete', methods=['POST'])
-@validation_chain([valid_id])
+@validation_chain([valid_id, can_edit_layer])
 def delete_feature(layer_name: str):
     data = json.loads(request.data)
     layer = Layer(layer_name)
@@ -97,6 +98,7 @@ def get_field_values(layer_name: str, field_name: str):
 
 
 @layers_bp.route('/<layer_name>/fields/add', methods=['POST'])
+@validation_chain([can_edit_layer])
 def add_field(layer_name: str):
     data = json.loads(request.data)
     if data['name'] in RESERVED_WORDS:
@@ -106,6 +108,7 @@ def add_field(layer_name: str):
 
 
 @layers_bp.route('/<layer_name>/fields/delete', methods=['POST'])
+@validation_chain([can_edit_layer])
 def delete_field(layer_name: str):
     data = json.loads(request.data)
     layer = Layer(layer_name)
@@ -135,7 +138,7 @@ def attatch_files(layer_name: str, fid: int):
 
 
 @layers_bp.route('/<layer_name>/<fid>/file/<filename>/remove', methods=['POST'])
-@validation_chain([valid_file])
+@validation_chain([valid_file, can_edit_layer])
 def remove_attatchment(layer_name: str, fid: int, filename: str):
     result = remove_file(layer_name, fid, filename)
     return result

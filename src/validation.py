@@ -3,10 +3,11 @@ import json
 from flask import request, jsonify
 from functools import wraps
 from marshmallow import Schema, fields
-from marshmallow.validate import Range, Length, OneOf
+from marshmallow.validate import Range, OneOf
 from marshmallow.exceptions import ValidationError
-
+from src.auth.jwt import get_jwt_identity
 from src.config import Config
+from src.consts import UserRoles
 
     
 def validate_digits(value):
@@ -98,3 +99,10 @@ def valid_file(request):
             return False, f'Недопустимый тип файла. Разрешено загружать только {", ".join(Config.ALLOWED_ATTACHMENT_FILETYPES)}'
     return True, None
 
+
+def can_edit_layer(request):
+    claims = get_jwt_identity()
+    role = claims.get("role")
+    if role == UserRoles.VISITOR.value:
+        return False, 'Нельзя редактировать этот слой'
+    return True, None
