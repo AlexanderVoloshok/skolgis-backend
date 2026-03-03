@@ -60,7 +60,7 @@ class Layer():
         filters_raw = options.get("filter")
         limit_raw = options.get("limit", type=int)
         offset_raw = options.get("offset", type=int)
-        order_raw = options.get("order")
+        order_raw = f'{options.get("orderBy")}:{"asc" if options.get("orderFn") == "ascend" else "desc"}'
 
         ALLOWED_COLUMNS = {c.name: c for c in self.layer_table.columns}
         GEOM_COL = sql.literal_column("geom").label("geom")

@@ -99,6 +99,8 @@ def parse_order(raw: Optional[str]) -> List[Tuple[str, str]]:
         if not part: 
             continue
         col, dir_ = (part.split(":", 1) + ["asc"])[:2]
+        if col == 'None':
+            continue
         col = col.strip()
         dir_ = dir_.strip().lower()
         if dir_ not in ("asc", "desc"):
