@@ -1,7 +1,11 @@
 import json
+import pandas as pd
+import geopandas as gpd
 from typing import Any, Dict, List, Tuple, Optional
 from sqlalchemy import and_, or_, not_, true, false, Column, String, DateTime, Numeric
 from sqlalchemy.sql.expression import BinaryExpression
+from openpyxl import load_workbook
+from openpyxl.styles import Font
 
 def parse_filters(raw) -> List[Dict[str, Any]]:
     if raw is None:
@@ -125,3 +129,97 @@ def resolve_type(kind: str, length: int = None):
         return Numeric()
 
     raise ValueError(f"Неизвестный тип колонки: {kind}")
+
+def add_category_totals(
+    gdf: gpd.GeoDataFrame | pd.DataFrame,
+    category_col: str,
+    total_label_col: str | None = None,
+    grand_total_text: str = "ИТОГО",
+    exclude_sum_cols: list[str] | None = None,
+    keep_geometry: bool = False,
+) -> pd.DataFrame:
+    """
+    Добавляет строки 'ИТОГО' после каждой категории и общий итог в конце.
+
+    Args:
+        gdf: исходный GeoDataFrame/DataFrame
+        category_col: колонка с категорией объектов
+        total_label_col: в какую колонку писать 'ИТОГО'
+                         если None, текст пишется в category_col
+        total_text: подпись для итогов по категории
+        grand_total_text: подпись для общего итога
+        exclude_sum_cols: числовые колонки, которые НЕ нужно суммировать
+        keep_geometry: оставлять ли geometry в результате
+
+    Returns:
+        pd.DataFrame с добавленными строками итогов
+    """
+    df = gdf.copy()
+
+    if not keep_geometry and "geometry" in df.columns:
+        df = df.drop(columns=["geometry"])
+
+    exclude_sum_cols = set(exclude_sum_cols or [])
+
+    # Какие колонки суммировать
+    numeric_cols = [
+        col for col in df.select_dtypes(include="number").columns
+        if col not in exclude_sum_cols
+    ]
+
+    # Куда писать слово "ИТОГО"
+    label_col = total_label_col or category_col
+
+    # Сохраняем исходный порядок категорий
+    categories = df[category_col].drop_duplicates().tolist()
+
+    parts = []
+
+    for category in categories:
+        group = df[df[category_col] == category].copy()
+        parts.append(group)
+
+        total_row = {col: None for col in df.columns}
+
+        # Подпись строки
+        total_row[label_col] = f"ИТОГО {category}"
+
+        # Чтобы было видно, к какой категории относится итог
+        if label_col != category_col:
+            total_row[category_col] = category
+
+        # Суммы только по числовым колонкам
+        for col in numeric_cols:
+            total_row[col] = group[col].sum()
+
+        parts.append(pd.DataFrame([total_row], columns=df.columns))
+
+    # Общий итог
+    grand_total_row = {col: None for col in df.columns}
+    grand_total_row[label_col] = grand_total_text
+
+    for col in numeric_cols:
+        grand_total_row[col] = df[col].sum()
+
+    parts.append(pd.DataFrame([grand_total_row], columns=df.columns))
+
+    result = pd.concat(parts, ignore_index=True)
+    return result
+
+def bold_total_rows(xlsx_path: str, sheet_name: str, label_col_name: str) -> None:
+    wb = load_workbook(xlsx_path)
+    ws = wb[sheet_name]
+
+    headers = [cell.value for cell in ws[1]]
+
+    label_col_idx = headers.index(label_col_name) + 1
+
+    bold_font = Font(bold=True)
+
+    for row in range(2, ws.max_row + 1):
+        value = ws.cell(row=row, column=label_col_idx).value
+        if isinstance(value, str) and value.startswith("ИТОГО"):
+            for col in range(1, ws.max_column + 1):
+                ws.cell(row=row, column=col).font = bold_font
+
+    wb.save(xlsx_path)

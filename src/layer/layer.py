@@ -12,7 +12,7 @@ from src.aliases import FieldAlias
 from src.config import Config, ENGINE, MAIN_META, LAYERS_META
 from src.geom_utils import parse_geometry, reproject_to_wgs, get_geom_type, enforce_geom_type
 from src.sql_utils import read_sql, read_postgis, execute_sql_query, execute_sql_and_commit
-from src.layer.utils import parse_order, build_where, resolve_type
+from src.layer.utils import parse_order, build_where, resolve_type, add_category_totals, bold_total_rows
 from src.layer.geoserver import clear_geoserver_cache
 from src.layer.kml import parse_kml
 import src.consts as consts
@@ -334,8 +334,11 @@ class Layer():
         if file_type == 'xlsx':
             fields = FieldAlias()
             columns_dict = fields.get_field_aliases(orient="dict")
+            if self.name == 'projects_full':
+                gdf = add_category_totals(gdf, 'func_purpose')
             gdf = gdf.rename(columns=columns_dict)
             gdf.to_excel(file_path)
+            bold_total_rows(file_path, "Sheet1", columns_dict['func_purpose'])
         elif file_type in ('kml', 'gpkg'):
             gdf.to_file(file_path, driver=file_type.upper())
         elif file_type == 'geojson':
