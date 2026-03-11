@@ -3,25 +3,28 @@ from email.message import EmailMessage
 from src.config import Config
 
 
-def send_invite_email(to_email: str, alias: str, temp_password: str):
+def send_invite_email(to_email: str, alias: str, invite_token: str):
     """Отправка письма с логином/временным паролем"""
     msg = EmailMessage()
     msg["Subject"] = f"[{Config.PROJECT_NAME}] Приглашение и данные для входа"
     msg["From"] = Config.MAIL_FROM
     msg["To"] = to_email
+
+    invite_link = f"{Config.FRONTEND_URL}/signup?token={invite_token}"
+
     msg.set_content(
         f"""Здравствуйте {alias}!
 
         Вас пригласили в {Config.PROJECT_NAME}.
-        Данные для входа:
+        Для завершения регистрации и установки пароля перейдите по ссылке:
+
+        {invite_link}
 
         Логин: {to_email}
-        Пароль: {temp_password}
 
-        Ссылка на вход: http://89.223.68.75/skolgis-frontend/
         Ссылка действует {Config.INVITE_TTL_HOURS} часов.
 
-        Если вы не ожидаете это письмо — просто игнорируйте его.
+        Если вы не запрашивали доступ, просто проигнорируйте это письмо.
         """
     )
     with smtplib.SMTP(host=Config.SMTP_HOST, port=Config.SMTP_PORT) as s:

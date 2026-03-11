@@ -1,4 +1,6 @@
 import json
+import secrets
+from datetime import datetime, timezone
 from flask import jsonify
 from werkzeug.security import check_password_hash, generate_password_hash
 from sqlalchemy import text, select, delete, update
@@ -6,7 +8,7 @@ from sqlalchemy.dialects.postgresql import insert
 from src.config import MAIN_META
 from src.consts import UserRoles
 from src.user.utils import jsonb_set_stmt
-from src.auth.misc import password_hash_json, invite_payload_json
+from src.auth.misc import invite_payload_json
 from src.auth.jwt import create_access_token
 from src.aliases import FieldAlias
 from src.sql_utils import read_sql, execute_sql_and_commit, execute_sql_query
@@ -78,7 +80,7 @@ class User():
             'role': payload.get("role", UserRoles.VISITOR),
             'state': {
                 "verified": invite_payload_json(),
-                "password": password_hash_json(),
+                "invite_token": secrets.token_urlsafe(32),
             }
         }        
         # upsert (on conflict do nothing/ update) — здесь создаём, при конфликте можно вернуть 409
@@ -93,6 +95,34 @@ class User():
             'state': res[4],
         }
     
+    @classmethod
+    def set_password(cls, token_hash: str, new_password: str):
+        new_hash = generate_password_hash(new_password)
+
+        q = text(f"""
+            SELECT id, state, password_hash FROM skolkovo_general.users
+            where state ->> 'invite_token' = '%s'
+        """ % token_hash)
+        user = execute_sql_query(q).fetchone()
+
+        print(user)
+
+        now = datetime.now(timezone.utc)
+        state = json.loads(user[1]['verified'])
+        if user[2] is not None:
+            return jsonify({'message': 'Ссылка уже использована'}), 400
+
+        if state['inv_expires_at'] is None or datetime.fromisoformat(state['inv_expires_at']) < now:
+            return jsonify({'message': 'Срок действия ссылки истёк'}), 400
+
+        q = text(f"""
+            UPDATE skolkovo_general.users
+            SET password_hash = '{new_hash}'
+            WHERE id = :uid
+        """)
+        execute_sql_and_commit(q.bindparams(uid=user[0]))
+        return jsonify({"status": "password updated"}), 200
+    
 
     def remove(self):
         q = delete(self.users_table).where(self.users_table.c.id == self.identity)
@@ -101,19 +131,6 @@ class User():
         #if not self.exists():
         #    return jsonify({"status": "bad", "error": "Failed to delete user"}), 500
         return jsonify({"status": "ok"}), 200
-
-
-    def set_password(self, new_password: str):
-        new_hash = generate_password_hash(new_password)
-        q = update(self.users_table).where(self.users_table.c.id == self.identity).values(password_hash=new_hash)
-        execute_sql_and_commit(q)
-        q = text(f"""
-            UPDATE skolkovo_general.users
-            SET state = {jsonb_set_stmt(["access_token"], "null")}
-            WHERE id = :uid
-        """)
-        execute_sql_and_commit(q.bindparams(uid=self.identity))
-        return jsonify({"status": "password updated"}), 200
 
 
     def set_role(self, new_role: UserRoles):
@@ -132,7 +149,7 @@ class User():
         return jsonify({"status": "role updated"}), 200
     
 
-    def refresh_invitation_state(self, regenerate_password: bool = False):
+    def refresh_invitation_state(self):
         # Обновляем verified
         j_verified = invite_payload_json()
         q = text(f"""
@@ -142,14 +159,12 @@ class User():
         """)
         execute_sql_and_commit(q.bindparams(uid=self.identity))
 
-        if regenerate_password:
-            j_pwd = password_hash_json()
-            q = text(f"""
-                UPDATE skolkovo_general.users
-                SET state = {jsonb_set_stmt(["password"], j_pwd)}
-                WHERE id = :uid
-            """)
-            execute_sql_and_commit(q.bindparams(uid=self.identit))
+        q = text(f"""
+            UPDATE skolkovo_general.users
+            SET state = {jsonb_set_stmt(["invite_token"], secrets.token_urlsafe(32))}
+            WHERE id = :uid
+        """)
+        execute_sql_and_commit(q.bindparams(uid=self.identit))
 
     #TODO: проверка пользователя без self. по токену или паролю с логином
     def exists(self, token: str = None) -> bool:

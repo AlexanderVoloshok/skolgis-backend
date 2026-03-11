@@ -50,4 +50,6 @@ class Config():
     SMTP_PASS = os.getenv("SMTP_PASS")
     MAIL_FROM = os.getenv("MAIL_FROM", "no-reply@skolgis.com")
     PROJECT_NAME = os.getenv("PROJECT_NAME", "Skolkovo GIS")
-    INVITE_TTL_HOURS = int(os.getenv("INVITE_TTL_HOURS", "72"))  # срок жизни приглашения
+    INVITE_TTL_HOURS = int(os.getenv("INVITE_TTL_HOURS", "24"))  # срок жизни приглашения
+
+    FRONTEND_URL = 'http://89.223.68.75/skolgis-frontend/'

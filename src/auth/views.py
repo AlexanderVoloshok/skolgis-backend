@@ -41,6 +41,23 @@ def logout():
     return drop_user_state(user_id['id'], 'access_token')
 
 
+@auth_bp.route('/set-password', methods=['POST'])
+def set_password():
+    data = request.get_json(silent=True) or {}
+
+    token = data.get('token', '').strip()
+    password = data.get('password', '')
+
+    #TODO: валидацию в декоратор
+    if not token or not password:
+        return jsonify({'message': 'Не передан токен или пароль'}), 400
+
+    if len(password) < 8:
+        return jsonify({'message': 'Пароль должен быть не короче 8 символов'}), 400
+    
+    return User.set_password(token, password)
+
+
 @auth_bp.route('/check', methods=['GET'])
 def check_auth():
     token = request.headers.get('Authorization')
