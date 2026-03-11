@@ -17,14 +17,16 @@ from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 import contextily as cx
 import geopandas as gpd
+from requests.exceptions import ReadTimeout
 from copy import deepcopy
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
+from pptx.oxml.ns import qn
 from io import BytesIO
 from typing import Tuple, List
 from src.config import MAIN_META
 from src.aliases import FieldAlias
-from src.presentation.utils import extract_cadastral_numbers, read_file_bytes
+from src.presentation.utils import extract_cadastral_numbers, get_media_by_fid
 from src.sql_utils import read_postgis
 from src.utils import timeit
 
@@ -53,16 +55,13 @@ def replace_picture(slide, shape_name: str, image_bytes: bytes) -> None:
             continue
 
         if shape.name == shape_name or getattr(shape, "alternative_text", "") == shape_name:
-            left, top, width, height = shape.left, shape.top, shape.width, shape.height
-
-            # удалить старую фигуру
-            shape.element.getparent().remove(shape.element)
-
-            # вставить новую (создаст корректные rels/rId)
-            slide.shapes.add_picture(BytesIO(image_bytes), left, top, width=width, height=height)
+            r_id = shape._element.blipFill.blip.rEmbed
+            image_part = shape.part.related_part(r_id)
+            image_part._blob = image_bytes
             return
 
-    raise ValueError(f"Picture '{shape_name}' not found on slide (by name/alt_text).")
+    print(f"Picture '{shape_name}' not found on slide")
+    return
 
 def _find_shape_by_name(slide, name: str):
     for shape in slide.shapes:
@@ -80,39 +79,31 @@ def fill_attributes(slide, attributes: dict[str, object]) -> None:
         но это крайний случай — лучше сделать в шаблоне хотя бы 1 run)
     """
     for shape_name, value in attributes.items():
-        value = round(value, 1) if type(value) == float else value # Все числа округляем до 1 знака
-        text = "Нет данных" if value is None else str(value)
         shape = _find_shape_by_name(slide, shape_name)
+        text = "" if value is None else str(value)
+
         if not shape:
             continue
-
         if not shape.has_text_frame:
-            # если вдруг shape не текстовый — пропусти или брось исключение
-            raise ValueError(f"Shape '{shape_name}' has no text_frame")
+            print(f"Shape '{shape_name}' has no text_frame")
+            continue
 
         tf = shape.text_frame
         if not tf.paragraphs:
-            tf.text = text
             continue
 
-        # Берём первый параграф
         p0 = tf.paragraphs[0]
 
-        # Если в параграфе уже есть runs — сохраняем стиль первого run
         if p0.runs:
             p0.runs[0].text = text
-            # очищаем остальные runs в первом параграфе
-            for r in p0.runs[1:]:
-                r.text = ""
+            for run in p0.runs[1:]:
+                run.text = ""
 
-            # очищаем текст во всех остальных параграфах (если они были)
             for p in tf.paragraphs[1:]:
-                for r in p.runs:
-                    r.text = ""
+                for run in p.runs:
+                    run.text = ""
         else:
-            # В параграфе нет runs: создадим один run (стиль может быть дефолтным)
-            run = p0.add_run()
-            run.text = text
+            p0.text = text
 
 class PresentationCreator():
     PRESENTATION_TEMPLATE = Presentation("src/assets/slide_sample.pptx")
@@ -161,7 +152,10 @@ class PresentationCreator():
         ax.set_ylim(miny - pad_y, maxy + pad_y)
 
         # ---------- СПУТНИКОВАЯ OPEN-SOURCE ПОДЛОЖКА ----------
-        cx.add_basemap(ax, source=cx.providers.OpenStreetMap.Mapnik, attribution=False, zorder=0)
+        try:
+            cx.add_basemap(ax, source=cx.providers.OpenStreetMap.Mapnik, attribution=False, zorder=0)
+        except ReadTimeout:
+            pass
 
         obj.plot(ax=ax, facecolor=obj_facecolor, edgecolor=obj_edgecolor, linewidth=obj_lw, alpha=0.35, zorder=20)
         # Контур поверх — чтобы был насыщенный
@@ -229,7 +223,7 @@ class PresentationCreator():
               SELECT project_id, name, ST_Transform(ST_MakeValid(geom), 4326) AS g4326 FROM skolkovo_layers.projects_full
               WHERE project_id = '{project_id}'
             )
-            SELECT p.project_id, p.name, p.geom, round((ST_Area(ST_Transform(ST_MakeValid(p.geom), 4326)::geography) / 10000)::numeric, 3) AS calc_area,
+            SELECT p.project_id, p.name, p.year_entered, p.geom, round((ST_Area(ST_Transform(ST_MakeValid(p.geom), 4326)::geography) / 10000)::numeric, 3) AS calc_area,
               -- дистанция в метрах
               round(
                 ST_Distance(
@@ -244,11 +238,11 @@ class PresentationCreator():
             LIMIT 4;
         """, crs=4326)
         map_bytes = self.render_project_map_png(obj_gdf, surrounding)
-        #project_render_bytes = read_file_bytes()
+        project_render_bytes = get_media_by_fid(int(obj_gdf.loc[0, 'project_id']), "render")
 
         attrs = obj_gdf.to_dict(orient="records")[0]
-        attrs['year_entered'] = None #int(attrs['year_entered']) if attrs['year_entered'] is not None else None
-        cadnumbers = [] #extract_cadastral_numbers(attrs['zu_number'])
+        attrs['year_entered'] = int(attrs['year_entered']) if attrs['year_entered'] is not None else None
+        cadnumbers = extract_cadastral_numbers(attrs['cadnums'])
         if len(cadnumbers) <= 5:
             attrs['zu_number'] = ", ".join(cadnumbers)
             attrs['cad_notes'] = ""
@@ -258,8 +252,8 @@ class PresentationCreator():
 
         return {
             "map_bytes": map_bytes,
-            #'project_render': project_render_bytes,
-            #'surrounding_renders': [read_file_bytes(file) for file in ],
+            'project_render': project_render_bytes,
+            'surrounding_renders': [get_media_by_fid(int(row['project_id']), "render") for _, row in surrounding.iterrows()],
             "attributes": attrs,
             "surrounding": surrounding.to_dict(orient="records")
         }
@@ -277,16 +271,41 @@ class PresentationCreator():
         layout = source_slide.slide_layout
         new_slide = self.PRESENTATION_TEMPLATE.slides.add_slide(layout)
 
-        # удалить авто-плейсхолдеры, которые добавил layout
+        # удалить авто-плейсхолдеры от layout
         for shp in list(new_slide.shapes):
             try:
                 shp.element.getparent().remove(shp.element)
             except Exception:
                 pass
 
-        # копируем shapes из source_slide
+        # копируем shapes по одному
         for shp in source_slide.shapes:
             new_el = deepcopy(shp.element)
+
+            # если это картинка — нужно перенести relationship вручную
+            if shp.shape_type == MSO_SHAPE_TYPE.PICTURE:
+                blip = shp._element.blipFill.blip
+                old_rid = blip.rEmbed  # в твоей версии именно rEmbed
+
+                rel = source_slide.part.rels[old_rid]
+
+                if rel.is_external:
+                    new_rid = new_slide.part.rels._add_relationship(
+                        rel.reltype,
+                        rel.target_ref,
+                        True
+                    )
+                else:
+                    new_rid = new_slide.part.rels._add_relationship(
+                        rel.reltype,
+                        rel.target_part,
+                        False
+                    )
+
+                # прописываем новый rId в скопированном XML
+                new_blip = new_el.blipFill.blip
+                new_blip.set(qn("r:embed"), new_rid)
+
             new_slide.shapes._spTree.insert_element_before(new_el, "p:extLst")
 
         return new_slide
@@ -310,7 +329,6 @@ class PresentationCreator():
         self.PRESENTATION_TEMPLATE.part.drop_rel(rId)
 
     def fill_presentation(self):
-        # 1) Параллельно готовим всё тяжёлое
         payloads = self._prepare_all_payloads()
 
         # 2) Открываем PPTX и в ОДНОМ потоке обновляем
@@ -319,8 +337,16 @@ class PresentationCreator():
             # находим картинку и подменяем её blob — без изменения рамки
             replace_picture(slide, "MapImage", payload["map_bytes"])
             fill_attributes(slide, payload['attributes'])
-            #if payload['project_render'] is not None:
-            #    replace_picture(slide, "ProjectRender", payload['project_render'])
+
+            if payload['project_render'] is not None:
+                replace_picture(slide, "ProjectRender", payload['project_render'])
+
+            for idx, render in enumerate(payload['surrounding_renders'][0:2]):
+                if render is not None:
+                    replace_picture(slide, f"surrounding_render_{idx+1}", render)
+
+            for idx, item in enumerate(payload["surrounding"][0:2]):
+                fill_attributes(slide, {f'surrounding_title_{idx+1}': item['name']})
 
         self._delete_slide(1)
         buf = BytesIO()

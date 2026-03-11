@@ -1,6 +1,7 @@
 import re
 from pathlib import Path
 from typing import Optional, List
+from src.sql_utils import read_sql
 from src.config import Config
 
 CAD_RE = re.compile(r"\b\d{2}:\d{2}:\d{1,7}:\d+\b")
@@ -27,3 +28,10 @@ def read_file_bytes(stored_name: Optional[str]) -> Optional[bytes]:
         return None
 
     return path.read_bytes()
+
+def get_media_by_fid(fid: int, prefix: str = "render"):
+    df = read_sql(f"""select stored_name from skolkovo_general.file_attachments fa
+        WHERE fid = '{fid}' and original_name like '{prefix}%'""")
+    if len(df) == 0:
+        return
+    return read_file_bytes(df.loc[0, 'stored_name'])
