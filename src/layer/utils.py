@@ -1,7 +1,7 @@
 import json
 import pandas as pd
 import geopandas as gpd
-from typing import Any, Dict, List, Tuple, Optional
+from typing import Any, Dict, List, Tuple, Optional, Union
 from sqlalchemy import and_, or_, not_, true, false, Column, String, DateTime, Numeric
 from sqlalchemy.sql.expression import BinaryExpression
 from openpyxl import load_workbook
@@ -131,11 +131,11 @@ def resolve_type(kind: str, length: int = None):
     raise ValueError(f"Неизвестный тип колонки: {kind}")
 
 def add_category_totals(
-    gdf: gpd.GeoDataFrame | pd.DataFrame,
+    gdf: Union[gpd.GeoDataFrame, pd.DataFrame],
     category_col: str,
-    total_label_col: str | None = None,
+    total_label_col: Optional[str] = None,
     grand_total_text: str = "ИТОГО",
-    exclude_sum_cols: list[str] | None = None,
+    exclude_sum_cols: Optional[List[str]] = None,
     keep_geometry: bool = False,
 ) -> pd.DataFrame:
     """
