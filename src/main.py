@@ -112,4 +112,6 @@ if __name__ == "__main__":
         os.mkdir(Config.UPLOAD_FOLDER)
     if not os.path.exists(Config.UPLOAD_FOLDER + '/attachments'):
         os.mkdir(Config.UPLOAD_FOLDER + '/attachments')
+    if not os.path.exists(Config.UPLOAD_FOLDER + '/tmp'):
+        os.mkdir(Config.UPLOAD_FOLDER + '/tmp')
     app.run(host='0.0.0.0', port=5000, threaded=True)
