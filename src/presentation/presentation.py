@@ -40,24 +40,50 @@ def iter_shapes_recursive(shapes):
             yield from iter_shapes_recursive(sh.shapes)
 
 def replace_picture(slide, shape_name: str, image_bytes: bytes) -> None:
-    """Заменяет изображение на слайде по имени формы
-
-    Args:
-        slide (_type_): слайд
-        shape_name (str): имя формы
-        image_bytes (bytes): изображение
-
-    Raises:
-        ValueError: _description_
+    """
+    Заменяет картинку на слайде на новую, уникальную для этого слайда.
+    Сохраняет координаты, размер, имя и alt text.
     """
     for shape in iter_shapes_recursive(slide.shapes):
         if shape.shape_type != MSO_SHAPE_TYPE.PICTURE:
             continue
 
         if shape.name == shape_name or getattr(shape, "alternative_text", "") == shape_name:
-            r_id = shape._element.blipFill.blip.rEmbed
-            image_part = shape.part.related_part(r_id)
-            image_part._blob = image_bytes
+            left, top, width, height = shape.left, shape.top, shape.width, shape.height
+            old_name = shape.name
+            old_alt = getattr(shape, "alternative_text", "")
+
+            parent = shape.element.getparent()
+            old_el = shape.element
+
+            # запомним позицию в дереве, чтобы вставить примерно туда же
+            insert_idx = list(parent).index(old_el)
+
+            # удаляем старую картинку
+            parent.remove(old_el)
+
+            # вставляем новую
+            new_pic = slide.shapes.add_picture(
+                BytesIO(image_bytes),
+                left,
+                top,
+                width=width,
+                height=height
+            )
+
+            # возвращаем имя и alt text
+            new_pic.name = old_name
+            try:
+                new_pic.alternative_text = old_alt or old_name
+            except Exception:
+                pass
+
+            # перемещаем новую картинку на место старой по z-order
+            new_el = new_pic.element
+            new_parent = new_el.getparent()
+            new_parent.remove(new_el)
+            parent.insert(insert_idx, new_el)
+
             return
 
     print(f"Picture '{shape_name}' not found on slide")
@@ -130,9 +156,13 @@ class PresentationCreator():
         figsize: Tuple[float, float] = (10, 6)
         dpi: int = 220
         padding_ratio: float = 0.06
-        obj_edgecolor: str = "blue"
-        obj_lw: float = 2.2
-        obj_facecolor: str = "#66CCFF"   # голубой
+        obj_edgecolor: str = "#4240C5"
+        obj_lw: float = 1.5
+        obj_facecolor: str = "#5374E1"   # голубой
+        surr_edgecolor = "#2F2F2F"
+        surr_facecolor = "#696969" 
+        sk_borders_color = "#E13838"
+        opacity = 0.7
 
         target_crs = "EPSG:3857"
         sk = self.skolkovo_gdf.to_crs(target_crs)
@@ -157,23 +187,23 @@ class PresentationCreator():
         except ReadTimeout:
             pass
 
-        obj.plot(ax=ax, facecolor=obj_facecolor, edgecolor=obj_edgecolor, linewidth=obj_lw, alpha=0.35, zorder=20)
+        obj.plot(ax=ax, facecolor=obj_facecolor, edgecolor=obj_edgecolor, linewidth=obj_lw, alpha=opacity, zorder=20)
         # Контур поверх — чтобы был насыщенный
         obj.boundary.plot(ax=ax, color=obj_edgecolor, linewidth=obj_lw, alpha=1.0, zorder=25)
 
-        surrounding.plot(ax=ax, facecolor="#9a9a9a", edgecolor="#707070", linewidth=obj_lw, alpha=0.35, zorder=20)
+        surrounding.plot(ax=ax, facecolor=surr_facecolor, edgecolor=surr_edgecolor, linewidth=obj_lw, alpha=opacity, zorder=20)
         # Контур поверх — чтобы был насыщенный
-        surrounding.boundary.plot(ax=ax, color="#9a9a9a", linewidth=obj_lw, alpha=1.0, zorder=25)
+        surrounding.boundary.plot(ax=ax, color=surr_facecolor, linewidth=obj_lw, alpha=1.0, zorder=25)
 
-        sk.boundary.plot(ax=ax, color="red", linewidth=2.6, zorder=18)
+        sk.plot(ax=ax, color=sk_borders_color, linewidth=1.3, zorder=23)
 
         # --- Легенда ---
         # Для проекта легенду делаем как Patch (заливка + контур),
         # для Сколково — как Line2D (только контур).
         handles = [
-            Line2D([0], [0], color="red", lw=2.6, label="Границы ИЦ Сколково"),
-            Patch(facecolor=obj_facecolor, edgecolor=obj_edgecolor, linewidth=obj_lw, alpha=0.35, label="Границы проекта"),
-            Patch(facecolor="#9a9a9a", edgecolor="#707070", linewidth=obj_lw, alpha=0.35, label="Окружение"),
+            Line2D([0], [0], color=sk_borders_color, lw=2.6, label="Границы ИЦ Сколково"),
+            Patch(facecolor=obj_facecolor, edgecolor=obj_edgecolor, linewidth=obj_lw, alpha=opacity, label="Границы проекта"),
+            Patch(facecolor=surr_facecolor, edgecolor=surr_edgecolor, linewidth=obj_lw, alpha=opacity, label="Окружение"),
         ]
         ax.legend(
             handles=handles, loc="upper left", fontsize=9, framealpha=0.9, borderpad=0.6, labelspacing=0.5, handlelength=2.2
@@ -189,20 +219,6 @@ class PresentationCreator():
         png_bytes = buf.read()
 
         return png_bytes
-
-    def _prepare_all_payloads(self):
-        """В многопоточном режиме подготавливает данные для каждого слайда.
-
-        Args:
-            slide_params_list (_type_): _description_
-
-        Returns:
-            _type_: _description_
-        """
-        #with ThreadPoolExecutor(max_workers=6) as pool:
-        #    results = list(pool.map(self._prepare_slide_payload, self.project_ids))
-        #return results
-        return [self._prepare_slide_payload(pid) for pid in self.project_ids]
 
     def _prepare_slide_payload(self, project_id: int):
         """
@@ -329,7 +345,7 @@ class PresentationCreator():
         self.PRESENTATION_TEMPLATE.part.drop_rel(rId)
 
     def fill_presentation(self):
-        payloads = self._prepare_all_payloads()
+        payloads = [self._prepare_slide_payload(pid) for pid in self.project_ids]
 
         # 2) Открываем PPTX и в ОДНОМ потоке обновляем
         for idx, payload in enumerate(payloads):
