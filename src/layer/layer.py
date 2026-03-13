@@ -86,8 +86,13 @@ class Layer():
         filtered_features = execute_sql_query(
             select(func.count(literal(1))).select_from(stmt)
         ).scalar_one()
+
+        ORDERABLE_COLUMNS = {
+            **ALLOWED_COLUMNS,
+            "calc_area": CALC_AREA_COL
+        }
         for name, direction in order_items:
-            col = self.layer_table.c[name]
+            col = ORDERABLE_COLUMNS[name]
             stmt = stmt.order_by(col.desc() if direction == "desc" else col.asc())
         stmt = stmt.limit(limit).offset(offset)
 
