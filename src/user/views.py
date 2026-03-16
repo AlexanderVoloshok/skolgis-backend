@@ -18,7 +18,9 @@ def check_jwt():
 
 @user_bp.route('/layers', methods=['GET'])
 def get_user_layers():
-    return User.get_layers()
+    user_id = get_jwt_identity()['id']
+    user = User(user_id)
+    return user.get_layers()
 
 
 @user_bp.route('', methods=['GET'])

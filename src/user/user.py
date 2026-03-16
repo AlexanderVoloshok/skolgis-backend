@@ -33,17 +33,16 @@ class User():
         info = self.get_info()
         self.role: UserRoles =  info['role'] if 'role' in info.keys() else UserRoles.VISITOR
 
-    @classmethod
-    def get_layers(cls):
+    def get_layers(self):
         """Выдаёт список слоёв пользователя в формате Json
 
         Returns:
             dict: список слоёв пользователя
         """
-        
-        df = read_sql("""
+        layers_type_id = '(1,3)' if self.role == UserRoles.VISITOR.value else '(1,2,3)'
+        df = read_sql(f"""
             SELECT id, source, table_name, alias, layers_type_id, geom_type, style_json, is_on, has3D, ext_params
-            FROM skolkovo_general.layers WHERE layers_type_id in (1,3)
+            FROM skolkovo_general.layers WHERE layers_type_id in {layers_type_id}
         """)
         return df.to_json(orient="records")
     

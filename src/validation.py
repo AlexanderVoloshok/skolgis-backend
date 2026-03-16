@@ -85,7 +85,6 @@ def valid_symbols_in_name(request):
         return False, "name cannot contain only whitespaces"
     return True, None
 
-
 def valid_file(request):
     size = Config.MAX_CONTENT_LENGTH
     for f in request.files.items():
@@ -98,7 +97,6 @@ def valid_file(request):
         if not any([filename.endswith(el) for el in Config.ALLOWED_ATTACHMENT_FILETYPES]):
             return False, f'Недопустимый тип файла. Разрешено загружать только {", ".join(Config.ALLOWED_ATTACHMENT_FILETYPES)}'
     return True, None
-
 
 def can_edit_layer(request):
     claims = get_jwt_identity()
