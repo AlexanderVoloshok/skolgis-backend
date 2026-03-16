@@ -44,7 +44,8 @@ class Layer():
             self.layer_table = LAYERS_META.tables['skolkovo_layers.' + self.name]
             self.columns = {column.name: str(column.type) for column in self.layer_table.columns}
             self.geom_type = get_geom_type(name)
-            self.layer_table.c.geom.type = Geometry(self.geom_type, srid=4326)
+            if self.geom_type is not None:
+                self.layer_table.c.geom.type = Geometry(self.geom_type, srid=4326)
     
 
     def get_features(self, options: dict):
@@ -216,7 +217,10 @@ class Layer():
         """
         id = attrs['id']
         attrs = {k:v for k,v in attrs.items() if k not in ('id', 'calc_area', 'table_name')}
-        if 'geom' in attrs.keys():
+        if self.geom_type is None:
+            attrs.pop('geom')
+            attrs.pop('fids')
+        elif 'geom' in attrs.keys():
             geometry = shape(attrs['geom'])
             #reproject
             geom = reproject_to_wgs(geometry)
@@ -226,8 +230,12 @@ class Layer():
         for k,v in attrs.items():
             if self.columns[k] in ('INTEGER', 'DOUBLE_PRECISION') and v == '':
                 attrs[k] = None
+        if self.name == 'projects_attrs':
+            where = self.layer_table.c.project_id == id #TODO: вообще, надо чтобы у всех был id
+        else:
+            where = self.layer_table.c.id == id
         q = self.layer_table.update()\
-            .where(self.layer_table.c.id == id)\
+            .where(where)\
             .values(attrs)
         cursor = execute_sql_and_commit(q)
         clear_geoserver_cache(self.name)
