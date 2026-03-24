@@ -33,7 +33,9 @@ class Config():
     JWT_LIFETIME = timedelta(days=7)
     UPLOAD_FOLDER = os.path.dirname(os.path.realpath(__file__)) + '/files'
 
-    GEOSERVER_ROOT = os.getenv('PROXY_BASE_URL', 'http://89.223.68.75/geoserver')
+    SERVER_ROOT = 'http://89.223.68.75'
+
+    GEOSERVER_ROOT = os.getenv('PROXY_BASE_URL', f'{SERVER_ROOT}/geoserver')
     GEOSERVER_USER = os.getenv('GEOSERVER_ADMIN_USER')
     GEOSERVER_PWD = os.getenv('GEOSERVER_ADMIN_PASSWORD')
     GEOSERVER_WORKSPACE = os.getenv('GEOSERVER_WORKSPACE')
@@ -52,4 +54,4 @@ class Config():
     PROJECT_NAME = os.getenv("PROJECT_NAME", "Skolkovo GIS")
     INVITE_TTL_HOURS = int(os.getenv("INVITE_TTL_HOURS", "24"))  # срок жизни приглашения
 
-    FRONTEND_URL = 'http://89.223.68.75/skolgis-frontend/'
+    FRONTEND_URL = f'{SERVER_ROOT}/skolgis-frontend/'

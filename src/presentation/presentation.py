@@ -28,6 +28,7 @@ from src.config import MAIN_META
 from src.aliases import FieldAlias
 from src.presentation.utils import extract_cadastral_numbers, get_media_by_fid
 from src.sql_utils import read_postgis
+from src.config import Config
 from src.utils import timeit
 
 files_table = MAIN_META.tables['skolkovo_general.file_attachments'] 
@@ -254,10 +255,12 @@ class PresentationCreator():
             LIMIT 4;
         """, crs=4326)
         map_bytes = self.render_project_map_png(obj_gdf, surrounding)
-        project_render_bytes = get_media_by_fid(int(obj_gdf.loc[0, 'project_id']), "render")
+        project_render_bytes, project_render_filename = get_media_by_fid(int(obj_gdf.loc[0, 'project_id']), "render")
 
         attrs = obj_gdf.to_dict(orient="records")[0]
+        attrs['project_render_filename'] = f'{Config.SERVER_ROOT}/{Config.APP_ROOT}/attachment/{project_render_filename}' if project_render_filename is not None else ''
         attrs['year_entered'] = int(attrs['year_entered']) if attrs['year_entered'] is not None else None
+        attrs['plotn_zastr'] = attrs['calc_area'] / attrs['spp_gab']
         cadnumbers = extract_cadastral_numbers(attrs['cadnums'])
         if len(cadnumbers) <= 5:
             attrs['zu_number'] = ", ".join(cadnumbers)
@@ -269,7 +272,7 @@ class PresentationCreator():
         return {
             "map_bytes": map_bytes,
             'project_render': project_render_bytes,
-            'surrounding_renders': [get_media_by_fid(int(row['project_id']), "render") for _, row in surrounding.iterrows()],
+            'surrounding_renders': [get_media_by_fid(int(row['project_id']), "render")[0] for _, row in surrounding.iterrows()],
             "attributes": attrs,
             "surrounding": surrounding.to_dict(orient="records")
         }

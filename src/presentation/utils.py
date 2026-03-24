@@ -33,5 +33,6 @@ def get_media_by_fid(fid: int, prefix: str = "render"):
     df = read_sql(f"""select stored_name from skolkovo_general.file_attachments fa
         WHERE fid = '{fid}' and original_name like '{prefix}%'""")
     if len(df) == 0:
-        return
-    return read_file_bytes(df.loc[0, 'stored_name'])
+        return None, None
+    filename = df.loc[0, 'stored_name']
+    return read_file_bytes(filename), filename
