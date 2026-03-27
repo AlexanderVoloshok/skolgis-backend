@@ -67,10 +67,22 @@ def export_layer(layer_name: str):
     return {'status': 'ok', "url": filename}
 
 
+@layers_bp.route('/<layer_name>/import', methods=['POST'])
+@validation_chain([valid_file])
+def import_attrs_bulk(layer_name: str):
+    for f in request.files.items():
+        layer = Layer(layer_name)
+        upload_result = layer.replace_attributes_from_file(f[1])
+
+    return upload_result
+
+
 @layers_bp.route('/<layer_name>/edit', methods=['POST'])
 @validation_chain([valid_id, can_edit_layer])
 def edit_layer(layer_name: str):
     data = json.loads(request.data)
+    #Если появился новый проект - добавляем его как новую строку
+    #ProjectAttrs.add_feature(attrs)
     layer = Layer(layer_name)
     return layer.set_feature_attrs(data)
 
@@ -114,7 +126,7 @@ def delete_field(layer_name: str):
     layer = Layer(layer_name)
     if data['name'] not in layer.columns.keys():
         return {"error": f"Field {data['name']} does not exist"}, 403
-    if layer_name == 'projects_attrs' and data['name'] in PROTECTED_COLUMN_NAMES:
+    if (layer_name == 'projects_attrs' and data['name'] in PROTECTED_COLUMN_NAMES) or data['name'] in ('id', 'project_id', 'geom', 'geometry'):
         return {"error": f"Поле {data['name']} защищённое. Его нельзя удалить"}, 403
     return layer.delete_field(data['name'])
 
