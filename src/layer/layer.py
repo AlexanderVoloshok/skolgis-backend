@@ -1,18 +1,19 @@
 import json
+import pandas as pd
 import geopandas as gpd
 import fiona
 from datetime import datetime, time, date
 from werkzeug.datastructures import FileStorage
 from typing import Union
 from shapely.geometry import shape
-from sqlalchemy import select, text, exc, sql, func, literal, Column
+from sqlalchemy import select, text, exc, sql, func, literal, Column, MetaData
 from geoalchemy2.shape import from_shape
 from geoalchemy2 import Geometry
 from src.aliases import FieldAlias
 from src.config import Config, ENGINE, MAIN_META, LAYERS_META
 from src.geom_utils import parse_geometry, reproject_to_wgs, get_geom_type, enforce_geom_type
 from src.sql_utils import read_sql, read_postgis, execute_sql_query, execute_sql_and_commit
-from src.layer.utils import parse_order, build_where, resolve_type, add_category_totals, bold_total_rows
+from src.layer.utils import parse_order, build_where, resolve_type, add_category_totals, bold_total_rows, get_refresh_projects_view_query, reflect_layer_table
 from src.layer.geoserver import clear_geoserver_cache
 from src.layer.kml import parse_kml
 import src.consts as consts
@@ -41,7 +42,7 @@ class Layer():
         self.props = self._get_layer_props(name)
         self.owner = owner
         if ('skolkovo_layers.' + self.name) in LAYERS_META.tables.keys():
-            self.layer_table = LAYERS_META.tables['skolkovo_layers.' + self.name]
+            self.layer_table = reflect_layer_table(self.name)
             self.columns = {column.name: str(column.type) for column in self.layer_table.columns}
             self.geom_type = get_geom_type(name)
             if self.geom_type is not None:
@@ -217,7 +218,7 @@ class Layer():
         """
         id = attrs['id']
         attrs = {k:v for k,v in attrs.items() if k not in ('id', 'calc_area', 'table_name')}
-        if self.geom_type is None:
+        if self.geom_type is None: # для project_attrs
             attrs.pop('geom')
             attrs.pop('fids')
         elif 'geom' in attrs.keys():
@@ -308,14 +309,37 @@ class Layer():
         # 2. Обновить метаданные SQLAlchemy в памяти
         new_col = Column(field_name, col_type, nullable=True)
         self.layer_table.append_column(new_col)
-        LAYERS_META.reflect(bind=ENGINE)
+        self.columns = {column.name: str(column.type) for column in self.layer_table.columns}
+
+        # 3. Обновить представление, если нужно
+        if self.name == 'projects_attrs':
+            q = get_refresh_projects_view_query(self.columns)
+            execute_sql_and_commit(q)
+
+        LAYERS_META.reflect(bind=ENGINE, views=True, extend_existing=True, autoload_replace=True)
         return {"status": "ok", "layer": self.name, "column": field_name}
 
 
     def delete_field(self, field_name: str):
-        with ENGINE.begin() as conn:
-            self.layer_table.c[field_name].drop(bind=conn)
-        LAYERS_META.reflect(bind=ENGINE)
+        if self.name == 'projects_attrs':
+            q = text("drop view skolkovo_layers.projects_full")
+            execute_sql_and_commit(q)
+        q = text(f'ALTER TABLE skolkovo_layers.{self.name} DROP COLUMN IF EXISTS {field_name}')
+        res = execute_sql_and_commit(q)
+        self.columns.pop(field_name)
+        if self.name == 'projects_attrs':
+            q = get_refresh_projects_view_query(self.columns)
+            execute_sql_and_commit(q)
+        
+        #TODO: вомзожно, это можно убрать, ведь таблица рефлексируется при каждой инициализации класса
+        LAYERS_META = MetaData(schema="skolkovo_layers")
+        LAYERS_META.reflect(bind=ENGINE, views=True, extend_existing=True, autoload_replace=True)
+        self.layer_table = LAYERS_META.tables['skolkovo_layers.' + self.name]
+        self.columns = {column.name: str(column.type) for column in self.layer_table.columns}
+        self.geom_type = get_geom_type(self.name)
+        if self.geom_type is not None:
+            self.layer_table.c.geom.type = Geometry(self.geom_type, srid=4326)
+
         return {"status": "ok", "layer": self.name, "column": field_name}
 
 
@@ -372,7 +396,7 @@ class Layer():
         except exc.ProgrammingError:
             return {'status': 'bad', "error": "Удаляемого слоя не существует или он назван другим именем"}, 500
 
-        LAYERS_META.reflect(bind=ENGINE)
+        LAYERS_META.reflect(bind=ENGINE, views=True)
         output['remove_id'] = remove_id
         return output
 
@@ -436,7 +460,7 @@ class Layer():
 
         layer.to_postgis(payload['table_name'], ENGINE, schema="skolkovo_layers", if_exists='replace', index=False)
         cls.add_primary_key(cls, payload['table_name'], replace="id" in layer.columns)
-        LAYERS_META.reflect(bind=ENGINE)
+        LAYERS_META.reflect(bind=ENGINE, views=True)
 
         df = read_sql("SELECT * FROM skolkovo_general.layers where id = %s", params=(updated_layer_id,))
         output['layer'] = df.to_dict(orient="records")[0]

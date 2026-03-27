@@ -6,7 +6,7 @@ from src.layer.files import attatch_file, remove_file
 from src.user.user import User
 from src.config import Config
 from src.validation import FeaturesSchema, valid_id, valid_file, validation_chain, can_edit_layer
-from src.consts import RESERVED_WORDS
+from src.consts import RESERVED_WORDS, PROTECTED_COLUMN_NAMES
 
 layers_bp = Blueprint('layer', __name__)
 
@@ -112,8 +112,10 @@ def add_field(layer_name: str):
 def delete_field(layer_name: str):
     data = json.loads(request.data)
     layer = Layer(layer_name)
-    if data['name'] in layer.columns.keys():
+    if data['name'] not in layer.columns.keys():
         return {"error": f"Field {data['name']} does not exist"}, 403
+    if layer_name == 'projects_attrs' and data['name'] in PROTECTED_COLUMN_NAMES:
+        return {"error": f"Поле {data['name']} защищённое. Его нельзя удалить"}, 403
     return layer.delete_field(data['name'])
 
 

@@ -2,10 +2,11 @@ import json
 import pandas as pd
 import geopandas as gpd
 from typing import Any, Dict, List, Tuple, Optional, Union
-from sqlalchemy import and_, or_, not_, true, false, Column, String, DateTime, Numeric
+from sqlalchemy import and_, or_, not_, true, false, Column, String, DateTime, Numeric, text, MetaData, Table
 from sqlalchemy.sql.expression import BinaryExpression
 from openpyxl import load_workbook
 from openpyxl.styles import Font
+from src.config import ENGINE
 
 def parse_filters(raw) -> List[Dict[str, Any]]:
     if raw is None:
@@ -223,3 +224,96 @@ def bold_total_rows(xlsx_path: str, sheet_name: str, label_col_name: str) -> Non
                 ws.cell(row=row, column=col).font = bold_font
 
     wb.save(xlsx_path)
+
+def get_refresh_projects_view_query(columns: List[Dict]):
+    """
+    Генерирует CREATE OR REPLACE VIEW для projects_full.
+
+    Логика:
+    - все колонки берутся из projects_attrs динамически
+    - в 1-м SELECT идут реальные p.<col>
+    - во 2-м SELECT идут либо override-выражения, либо NULL::<type> AS <col>
+    """
+
+    attrs_table: str = "projects_attrs"
+    buildings_table: str = "main_buildings"
+
+    # Если есть колонки, которые во 2-м SELECT надо брать не как NULL,
+    # а из main_buildings — задаём их здесь.
+    buildings_select_overrides = {
+        "geom": "mb.geom as geom",
+        "fids": "mb.id::text AS fids",
+        "floors": "mb.floors::text AS floors",
+    }
+
+    # 1) Первый SELECT:
+    #    id = p.project_id AS id
+    #    затем все колонки p в естественном порядке
+    #    затем geom и fids из агрегата
+    project_attrs_select_parts = [
+        "p.project_id AS id",
+        "b.geom",
+        "b.fids"
+    ]
+
+    project_attrs_select_parts.extend([f"p.{col}" for col in columns.keys()])
+
+    first_select_sql = " SELECT " + ",\n        ".join(project_attrs_select_parts) + f"""
+        FROM skolkovo_layers.{attrs_table} p
+        LEFT JOIN b_by_project b ON b.project_id = p.project_id"""
+
+    # 2) Второй SELECT:
+    #    id = NULL::<тип project_id> AS id
+    #    затем по всем колонкам либо override, либо NULL::<type> AS <col>
+    project_id_col = next((c for c in columns.items() if c[0] == "project_id"), None)
+    if not project_id_col:
+        raise ValueError("В таблице projects_attrs не найдена колонка project_id")
+
+    second_select_parts = [
+        f"NULL::{project_id_col[1]} AS id",
+        "mb.geom",
+        "mb.id::text AS fids",
+    ]
+
+    for col in columns.items():
+        col_name = col[0]
+        col_type = col[1]
+
+        if col_name in buildings_select_overrides:
+            second_select_parts.append(buildings_select_overrides[col_name])
+        else:
+            second_select_parts.append(f"NULL::{col_type} AS {col_name}")
+
+    second_select_sql = " SELECT " + ",\n        ".join(second_select_parts) + f"""
+        FROM skolkovo_layers.{buildings_table} mb
+        WHERE mb.project_id IS NULL
+    """
+
+    sql = f"""
+        CREATE OR REPLACE VIEW skolkovo_layers.projects_full
+        AS
+        WITH b_by_project AS (
+            SELECT
+                mb.project_id,
+                st_collect(mb.geom) AS geom,
+                string_agg(mb.id::text, ','::text) AS fids
+            FROM skolkovo_layers.{buildings_table} mb
+            WHERE mb.project_id IS NOT NULL
+            GROUP BY mb.project_id
+        )
+        {first_select_sql}
+        UNION ALL
+        {second_select_sql};
+    """.strip()
+
+    return text(sql)
+
+def reflect_layer_table(name: str):
+    meta = MetaData()
+    return Table(
+        name,
+        meta,
+        schema="skolkovo_layers",
+        autoload_with=ENGINE,
+        extend_existing=True,
+    )
