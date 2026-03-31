@@ -232,9 +232,8 @@ class Layer():
             if self.columns[k] in ('INTEGER', 'DOUBLE PRECISION') and v == '':
                 attrs[k] = None
 
-        where = self.layer_table.c.id == id
         q = self.layer_table.update()\
-            .where(where)\
+            .where(self.layer_table.c.id == id)\
             .values(attrs)
         cursor = execute_sql_and_commit(q)
         clear_geoserver_cache(self.name)
