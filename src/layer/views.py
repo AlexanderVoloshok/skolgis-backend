@@ -80,9 +80,14 @@ def import_attrs_bulk(layer_name: str):
 @layers_bp.route('/<layer_name>/edit', methods=['POST'])
 @validation_chain([valid_id, can_edit_layer])
 def edit_layer(layer_name: str):
+    is_new_project = request.args.get('is_new_project', 'false')
     data = json.loads(request.data)
-    #Если появился новый проект - добавляем его как новую строку
-    #ProjectAttrs.add_feature(attrs)
+    #Если появился новый проект - добавляем его как новую строку. плюс, апдейтим project_id здания
+    if is_new_project == 'true' and layer_name == "main_buildings":
+        projectAttrsLayer = Layer("projects_attrs")
+        new_feature = projectAttrsLayer.add_feature({"name": None})
+        data["project_id"] = new_feature['id']
+
     layer = Layer(layer_name)
     return layer.set_feature_attrs(data)
 

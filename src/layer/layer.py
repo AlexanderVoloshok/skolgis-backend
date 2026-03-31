@@ -217,8 +217,8 @@ class Layer():
             int: id фичи
         """
         id = attrs['id']
-        attrs = {k:v for k,v in attrs.items() if k not in ('id', 'calc_area', 'table_name')}
-        if self.geom_type is None: # для project_attrs
+        attrs = {k:v for k,v in attrs.items() if k in self.columns.keys() and k not in ('id', 'calc_area', 'table_name')}
+        if self.name == 'project_attrs': # для project_attrs
             attrs.pop('geom')
             attrs.pop('fids')
         elif 'geom' in attrs.keys():
@@ -229,12 +229,10 @@ class Layer():
 
         #Преобразование '' в None у числовых полей
         for k,v in attrs.items():
-            if self.columns[k] in ('INTEGER', 'DOUBLE_PRECISION') and v == '':
+            if self.columns[k] in ('INTEGER', 'DOUBLE PRECISION') and v == '':
                 attrs[k] = None
-        if self.name == 'projects_attrs':
-            where = self.layer_table.c.project_id == id #TODO: вообще, надо чтобы у всех был id
-        else:
-            where = self.layer_table.c.id == id
+
+        where = self.layer_table.c.id == id
         q = self.layer_table.update()\
             .where(where)\
             .values(attrs)

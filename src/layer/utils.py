@@ -251,23 +251,24 @@ def get_refresh_projects_view_query(columns: List[Dict]):
     #    затем все колонки p в естественном порядке
     #    затем geom и fids из агрегата
     project_attrs_select_parts = [
-        "p.project_id AS id",
+        "p.id AS id",
         "b.geom",
-        "b.fids"
+        "b.fids",
+        "p.id AS project_id",
     ]
 
     project_attrs_select_parts.extend([f"p.{col}" for col in columns.keys()])
 
     first_select_sql = " SELECT " + ",\n        ".join(project_attrs_select_parts) + f"""
         FROM skolkovo_layers.{attrs_table} p
-        LEFT JOIN b_by_project b ON b.project_id = p.project_id"""
+        LEFT JOIN b_by_project b ON b.project_id = p.id"""
 
     # 2) Второй SELECT:
     #    id = NULL::<тип project_id> AS id
     #    затем по всем колонкам либо override, либо NULL::<type> AS <col>
-    project_id_col = next((c for c in columns.items() if c[0] == "project_id"), None)
+    project_id_col = next((c for c in columns.items() if c[0] == "id"), None)
     if not project_id_col:
-        raise ValueError("В таблице projects_attrs не найдена колонка project_id")
+        raise ValueError("В таблице projects_attrs не найдена колонка id")
 
     second_select_parts = [
         f"NULL::{project_id_col[1]} AS id",
