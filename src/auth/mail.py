@@ -7,7 +7,7 @@ def send_invite_email(to_email: str, alias: str, invite_token: str):
     """Отправка письма с логином/временным паролем"""
     msg = EmailMessage()
     msg["Subject"] = f"[{Config.PROJECT_NAME}] Приглашение и данные для входа"
-    msg["From"] = Config.MAIL_FROM
+    msg["From"] = Config.SMTP_USER
     msg["To"] = to_email
 
     invite_link = f"{Config.FRONTEND_URL}/signup?token={invite_token}"
@@ -27,6 +27,7 @@ def send_invite_email(to_email: str, alias: str, invite_token: str):
         Если вы не запрашивали доступ, просто проигнорируйте это письмо.
         """
     )
+    
     with smtplib.SMTP(host=Config.SMTP_HOST, port=Config.SMTP_PORT) as s:
         if Config.SMTP_USER and Config.SMTP_PASS:
             s.starttls()

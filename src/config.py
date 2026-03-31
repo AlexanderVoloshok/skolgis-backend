@@ -46,12 +46,11 @@ class Config():
     ENCRYPT_ALG = "HS256"
     MAX_CONTENT_LENGTH = 1 * 1024 * 1024 * 1024 # 1 GB
 
-    SMTP_HOST = os.getenv("SMTP_HOST", "localhost")
-    SMTP_PORT = int(os.getenv("SMTP_PORT", "25"))
+    SMTP_HOST = os.getenv("SMTP_HOST")
+    SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
     SMTP_USER = os.getenv("SMTP_USER")
     SMTP_PASS = os.getenv("SMTP_PASS")
-    MAIL_FROM = os.getenv("MAIL_FROM", "no-reply@skolgis.com")
     PROJECT_NAME = os.getenv("PROJECT_NAME", "Skolkovo GIS")
     INVITE_TTL_HOURS = int(os.getenv("INVITE_TTL_HOURS", "24"))  # срок жизни приглашения
 
-    FRONTEND_URL = f'{SERVER_ROOT}/skolgis-frontend/'
+    FRONTEND_URL = f'{SERVER_ROOT}/skolgis-frontend'

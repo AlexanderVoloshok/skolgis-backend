@@ -56,18 +56,19 @@ def add_user():
     new_user = User.add(payload)
 
     # Отправляем письмо
-    #try:
-    #    send_invite_email(
-    #        new_user['login'], 
-    #        alias=f"{payload['first_name']} {payload['middle_name']}".strip(), 
-    #        temp_password=new_user['state']['password']
-    #    )
-    #except Exception as e:
-    #    # Почта не критична для создания — сообщим, но 201 оставим
-    #    return jsonify({
-    #        "id": new_user['id'],
-    #        "warning": f"User created, but email not sent: {str(e)}"
-    #    }), 201
+    try:
+        send_invite_email(
+            new_user['login'], 
+            alias=f"{payload['first_name']} {payload['middle_name']}".strip(), 
+            invite_token=new_user['state']['invite_token']
+        )
+    except Exception as e:
+        # Почта не критична для создания — сообщим, но 201 оставим
+        return jsonify({
+            "id": new_user['id'],
+            "login": new_user['login'], "alias": new_user['alias'], "role": new_user['role'],
+            "warning": f"User created, but email not sent: {str(e)}"
+        }), 201
 
     return jsonify({"id": new_user['id'], "login": new_user['login'], "alias": new_user['alias'], "role": new_user['role']}), 201
 
@@ -77,17 +78,13 @@ def add_user():
 def resend_invitation(user_id: str):
     """
     Переотправка приглашения: продлеваем inv_expires_at и шлём письмо заново.
-    Можно передать {"regenerate_password": true} чтобы выдать новый временный пароль.
     """
-    body = request.get_json(silent=True) or {}
-    regenerate_password = bool(body.get("regenerate_password", False))
-
     new_user = User(user_id)
 
     if not new_user.exists():
         return jsonify({"error": "User not found"}), 404
 
-    new_user.refresh_invitation_state(regenerate_password)
+    new_user.refresh_invitation_state()
     userinfo = new_user.get_info()
 
     # Шлём письмо
@@ -95,7 +92,7 @@ def resend_invitation(user_id: str):
         send_invite_email(
             userinfo['login'], 
             alias=userinfo['alias'], 
-            temp_password=userinfo['state']['invite_token']
+            invite_token=userinfo['state']['invite_token']
         )
     except Exception as e:
         return jsonify({"status": "bad", "warning": f"Invite updated, but email not sent: {str(e)}"}), 200
@@ -110,13 +107,6 @@ def delete_user(user_id: str):
     user = User(user_id)
     return user.remove()
 
-
-#@user_bp.route("/<user_id>/password", methods=["POST"])
-#def change_password(user_id: str):
-#    self_user_id = get_jwt_identity()['id']
-#    new_password = request.get_json(force=True).get("new_password")
-#    user = User(user_id)
-#    return user.set_password(new_password)
 
 
 @user_bp.route("/<user_id>/role", methods=["POST"])
