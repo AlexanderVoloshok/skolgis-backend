@@ -10,7 +10,7 @@ def send_invite_email(to_email: str, alias: str, invite_token: str):
     msg["From"] = Config.SMTP_USER
     msg["To"] = to_email
 
-    invite_link = f"{Config.FRONTEND_URL}/signup?token={invite_token}"
+    invite_link = f"{Config.FRONTEND_URL}/#/signup?token={invite_token}"
 
     msg.set_content(
         f"""Здравствуйте {alias}!
