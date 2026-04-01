@@ -106,7 +106,10 @@ class User():
 
         now = datetime.now(timezone.utc)
 
-        state = user[1]['verified']
+        try:
+            state = json.loads(user[1]['verified'])
+        except:
+            state = user[1]['verified']
         if user[2] is not None:
             return jsonify({'message': 'Ссылка уже использована'}), 400
 
