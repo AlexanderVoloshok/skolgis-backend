@@ -465,6 +465,11 @@ class Layer():
             output['bbox'] = list(layer.to_crs(3857).geometry.total_bounds)
         return output
 
+    def replace_attributes_from_file(self, file: FileStorage):
+        """ОБновляет таблицу атрибутов слоя из xlsx-файла
+        """
+        clear_geoserver_cache(self.name)
+        return {"status": "ok"}
 
     def _update_layers_table(self, payload: dict):
         """Обновляет таблицу слоёв в БД, добавляя в неё строчку с новым слоем

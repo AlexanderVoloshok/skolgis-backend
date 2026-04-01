@@ -158,12 +158,17 @@ class User():
         """)
         execute_sql_and_commit(q.bindparams(uid=self.identity))
 
-        q = text(f"""
+        q = text("""
             UPDATE skolkovo_general.users
-            SET state = {jsonb_set_stmt(["invite_token"], secrets.token_urlsafe(32))}
-            WHERE id = :uid
-        """)
-        execute_sql_and_commit(q.bindparams(uid=self.identit))
+            SET state = jsonb_set(
+                state::jsonb,
+                '{invite_token}',
+                to_jsonb('%s'::text),
+                true
+            )
+            WHERE id = '%s';
+        """ % (secrets.token_urlsafe(32), self.identity))
+        execute_sql_and_commit(q)
 
     #TODO: проверка пользователя без self. по токену или паролю с логином
     def exists(self, token: str = None) -> bool:

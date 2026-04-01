@@ -92,7 +92,7 @@ def resend_invitation(user_id: str):
         send_invite_email(
             userinfo['login'], 
             alias=userinfo['alias'], 
-            invite_token=userinfo['state']['invite_token']
+            invite_token=json.loads(userinfo['state'])['invite_token']
         )
     except Exception as e:
         return jsonify({"status": "bad", "warning": f"Invite updated, but email not sent: {str(e)}"}), 200

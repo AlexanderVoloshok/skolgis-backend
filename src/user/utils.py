@@ -6,4 +6,4 @@ def jsonb_set_stmt(field_path: List[str], value_json: str):
     value_json должен быть валидным JSON (кавычки и т.п. уже расставлены).
     """
     path = "{" + ",".join(field_path) + "}"
-    return f"jsonb_set(state::jsonb, '{path}', {value_json}, true)"
+    return f"jsonb_set(state::jsonb, '{path}', '{value_json}', true)"

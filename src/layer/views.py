@@ -104,6 +104,15 @@ def add_feature(layer_name: str):
 @validation_chain([valid_id, can_edit_layer])
 def delete_feature(layer_name: str):
     data = json.loads(request.data)
+    if layer_name == 'projects_full':
+        layer_name = "projects_attrs"
+
+        # Если удаляется проект - у зданий должен учищаться project_id
+        # TODO: возможно, лучше извлекать id зданий запросом из БД
+        buildings_layer = Layer("main_buildings")
+        for fid in data["buildingIds"]:
+            buildings_layer.set_feature_attrs({'id': fid, 'project_id': None})
+
     layer = Layer(layer_name)
     return layer.delete_feature(data['id'])
 
