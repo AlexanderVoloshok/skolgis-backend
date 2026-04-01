@@ -104,10 +104,9 @@ class User():
         """ % token_hash)
         user = execute_sql_query(q).fetchone()
 
-        print(user)
-
         now = datetime.now(timezone.utc)
-        state = json.loads(user[1]['verified'])
+
+        state = user[1]['verified']
         if user[2] is not None:
             return jsonify({'message': 'Ссылка уже использована'}), 400
 
