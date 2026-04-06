@@ -67,16 +67,6 @@ def export_layer(layer_name: str):
     return {'status': 'ok', "url": filename}
 
 
-@layers_bp.route('/<layer_name>/import', methods=['POST'])
-@validation_chain([valid_file])
-def import_attrs_bulk(layer_name: str):
-    for f in request.files.items():
-        layer = Layer(layer_name)
-        upload_result = layer.replace_attributes_from_file(f[1])
-
-    return upload_result
-
-
 @layers_bp.route('/<layer_name>/edit', methods=['POST'])
 @validation_chain([valid_id, can_edit_layer])
 def edit_layer(layer_name: str):
@@ -89,6 +79,10 @@ def edit_layer(layer_name: str):
         data["project_id"] = new_feature['id']
 
     layer = Layer(layer_name)
+    if isinstance(data, list):
+        for elem in data:
+            layer.set_feature_attrs(elem)
+        return {"status": "ok", "layer": layer_name}
     return layer.set_feature_attrs(data)
 
 

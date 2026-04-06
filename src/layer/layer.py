@@ -1,5 +1,4 @@
 import json
-import pandas as pd
 import geopandas as gpd
 import fiona
 from datetime import datetime, time, date
@@ -231,7 +230,6 @@ class Layer():
         for k,v in attrs.items():
             if self.columns[k] in ('INTEGER', 'DOUBLE PRECISION') and v == '':
                 attrs[k] = None
-
         q = self.layer_table.update()\
             .where(self.layer_table.c.id == id)\
             .values(attrs)
@@ -465,11 +463,39 @@ class Layer():
             output['bbox'] = list(layer.to_crs(3857).geometry.total_bounds)
         return output
 
-    def replace_attributes_from_file(self, file: FileStorage):
-        """ОБновляет таблицу атрибутов слоя из xlsx-файла
-        """
-        clear_geoserver_cache(self.name)
-        return {"status": "ok"}
+    #def replace_attributes_from_file(self, file: FileStorage):
+    #    """ОБновляет таблицу атрибутов слоя из xlsx-файла
+    #    """
+    #    layer = pd.read_excel(file)
+#
+    #    unwanted_columns = ('id', 'calc_area', 'geom', 'geometry')
+    #    for c in unwanted_columns:
+    #        if c in layer.columns:
+    #            layer = layer.drop(columns=[c])
+#
+    #    layer.columns = [c.lower() for c in layer.columns]
+#
+    #    unwanted_column_names = set.intersection(set(layer.columns), consts.RESERVED_WORDS)
+    #    if len(unwanted_column_names) > 0:
+    #        return {"status": "bad", "error": f"Недоспустимые имена колонок {', '.join(unwanted_column_names)}. Их необходимо переименовать"}, 403
+    #    
+    #    if self.name in ('projects_attrs', 'main_buildings'):
+    #        PROTECTED_COLUMN_NAMES = consts.PROTECTED_COLUMN_NAMES if self.name == 'main_buildings' else [n for n in self.PROTECTED_COLUMN_NAMES if n != 'project_id']
+#
+    #        required_column_names = set(PROTECTED_COLUMN_NAMES)
+    #        missing_column_names = set.difference(required_column_names, set(layer.columns))
+    #        if len(missing_column_names) > 0:
+    #            return {"status": "bad", "error": f"Отсутствуют колонки {', '.join(missing_column_names)}. Их необходимо добавить"}, 403
+#
+    #    #layer.to_sql(self.name, ENGINE, schema="skolkovo_layers", if_exists='replace', index=False)
+    #    if self.name == 'projects_attrs':
+    #        q = get_refresh_projects_view_query(self.columns)
+    #        execute_sql_and_commit(q)
+#
+    #    LAYERS_META.reflect(bind=ENGINE, views=True, extend_existing=True, autoload_replace=True)
+    #    clear_geoserver_cache(self.name)
+    #    return {"status": "ok"}
+
 
     def _update_layers_table(self, payload: dict):
         """Обновляет таблицу слоёв в БД, добавляя в неё строчку с новым слоем

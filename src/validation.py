@@ -64,13 +64,17 @@ def validation_chain(validators):
 
 def valid_id(request):
     data = json.loads(request.data) if request.method == 'POST' else {}
-    oid = (data['id'] if 'id' in data.keys() else None) or request.view_args.get('id', -1)
-    try:
-        oid = int(oid)
-    except ValueError:
-        return False, "invalid id format"
-    if oid < 0:
-        return False, "invalid id format"
+    if isinstance(data, dict):
+        data = [data]
+
+    for elem in data:
+        oid = (elem['id'] if 'id' in elem.keys() else None) or request.view_args.get('id', -1)
+        try:
+            oid = int(oid)
+        except ValueError:
+            return False, "invalid id format"
+        if oid < 0:
+            return False, "invalid id format"
     return True, None
 
 def valid_symbols_in_name(request):
