@@ -303,9 +303,11 @@ def get_refresh_projects_view_query(columns: List[Dict]):
             GROUP BY mb.project_id
         )
         {first_select_sql}
-        UNION ALL
-        {second_select_sql};
+        
     """.strip()
+
+    # UNION ALL
+    # {second_select_sql};
 
     return text(sql)
 
