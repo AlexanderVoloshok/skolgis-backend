@@ -104,8 +104,9 @@ def delete_feature(layer_name: str):
         # Если удаляется проект - у зданий должен учищаться project_id
         # TODO: возможно, лучше извлекать id зданий запросом из БД
         buildings_layer = Layer("main_buildings")
-        for fid in data["buildingIds"]:
-            buildings_layer.set_feature_attrs({'id': fid, 'project_id': None})
+        if "buildingIds" in data.keys():
+            for fid in data["buildingIds"]:
+                buildings_layer.set_feature_attrs({'id': fid, 'project_id': None})
 
     layer = Layer(layer_name)
     return layer.delete_feature(data['id'])
@@ -133,7 +134,7 @@ def delete_field(layer_name: str):
     data = json.loads(request.data)
     layer = Layer(layer_name)
     if data['name'] not in layer.columns.keys():
-        return {"error": f"Field {data['name']} does not exist"}, 403
+        return {"error": f"Поля {data['name']} не существует"}, 403
     if (layer_name == 'projects_attrs' and data['name'] in PROTECTED_COLUMN_NAMES) or data['name'] in ('id', 'project_id', 'geom', 'geometry'):
         return {"error": f"Поле {data['name']} защищённое. Его нельзя удалить"}, 403
     return layer.delete_field(data['name'])

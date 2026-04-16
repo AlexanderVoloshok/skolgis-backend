@@ -248,7 +248,7 @@ class Layer():
             int: id фичи
         """
 
-        attrs = {k:v for k,v in attrs.items() if k not in ('id')}
+        attrs = {k:v for k,v in attrs.items() if k in self.columns.keys() and k not in ('id')}
         if 'geom' in attrs.keys():
             geometry = parse_geometry(attrs['geom'], self.geom_type)
             geom = reproject_to_wgs(geometry)

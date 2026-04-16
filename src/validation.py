@@ -72,9 +72,9 @@ def valid_id(request):
         try:
             oid = int(oid)
         except ValueError:
-            return False, "invalid id format"
+            return False, f"invalid id format: {oid} of type {type(oid)}"
         if oid < 0:
-            return False, "invalid id format"
+            return False, f"invalid id format: {oid} of type {type(oid)}"
     return True, None
 
 def valid_symbols_in_name(request):
