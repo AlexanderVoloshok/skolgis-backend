@@ -26,7 +26,7 @@ from io import BytesIO
 from typing import Tuple, List
 from src.config import MAIN_META
 from src.aliases import FieldAlias
-from src.presentation.utils import extract_cadastral_numbers, get_media_by_fid
+from src.presentation.utils import get_media_by_fid
 from src.sql_utils import read_postgis
 from src.config import Config
 from src.utils import timeit
@@ -231,8 +231,7 @@ class PresentationCreator():
           }
         """
         obj_gdf = read_postgis(f"""
-            SELECT *, round((ST_Area(ST_Transform(ST_MakeValid(geom), 4326)::geography)/ 10000)::numeric,  3) as calc_area 
-            FROM skolkovo_layers.projects_full
+            SELECT * FROM skolkovo_layers.projects_full
             WHERE project_id = '{project_id}'
         """, crs=4326)
         surrounding = read_postgis(f"""
@@ -255,19 +254,13 @@ class PresentationCreator():
             LIMIT 4;
         """, crs=4326)
         map_bytes = self.render_project_map_png(obj_gdf, surrounding)
-        project_render_bytes, project_render_filename = get_media_by_fid(int(obj_gdf.loc[0, 'project_id']), "render")
+        project_render_bytes, project_render_filename = get_media_by_fid(int(obj_gdf.loc[0, 'id']), "render")
 
         attrs = obj_gdf.to_dict(orient="records")[0]
         attrs['project_render_filename'] = f'{Config.SERVER_ROOT}/{Config.APP_ROOT}/attachment/{project_render_filename}' if project_render_filename is not None else ''
         attrs['year_entered'] = int(attrs['year_entered']) if attrs['year_entered'] is not None else None
-        attrs['plotn_zastr'] = attrs['calc_area'] / attrs['spp_gab']
-        cadnumbers = extract_cadastral_numbers(attrs['cadnums'])
-        if len(cadnumbers) <= 5:
-            attrs['zu_number'] = ", ".join(cadnumbers)
-            attrs['cad_notes'] = ""
-        else:
-            attrs['zu_number'] = f"{len(cadnumbers)} участков*"
-            attrs['cad_notes'] = "Состав проекта: " + ", ".join(cadnumbers)
+        attrs['spp_gab'] = int(attrs['spp_gab']) if attrs['spp_gab'] is not None else None
+        attrs['parcel_area_ga'] = round(attrs['parcel_area_ga'], 3)
 
         return {
             "map_bytes": map_bytes,
