@@ -257,7 +257,7 @@ def get_refresh_projects_view_query(columns: List[Dict]):
         "p.id AS project_id",
     ]
 
-    project_attrs_select_parts.extend([f"p.{col}" for col in columns.keys()])
+    project_attrs_select_parts.extend([f"p.{col}" for col in columns.keys() if col != 'id'])
 
     first_select_sql = " SELECT " + ",\n        ".join(project_attrs_select_parts) + f"""
         FROM skolkovo_layers.{attrs_table} p
@@ -291,7 +291,7 @@ def get_refresh_projects_view_query(columns: List[Dict]):
     """
 
     sql = f"""
-        CREATE OR REPLACE VIEW skolkovo_layers.projects_full
+        CREATE VIEW skolkovo_layers.projects_full
         AS
         WITH b_by_project AS (
             SELECT

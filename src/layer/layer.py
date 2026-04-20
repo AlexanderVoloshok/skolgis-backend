@@ -308,8 +308,9 @@ class Layer():
 
         # 3. Обновить представление, если нужно
         if self.name == 'projects_attrs':
+            drop_q = text("DROP VIEW IF EXISTS skolkovo_layers.projects_full")
             q = get_refresh_projects_view_query(self.columns)
-            execute_sql_and_commit(q)
+            execute_sql_and_commit([drop_q, q])
 
         LAYERS_META.reflect(bind=ENGINE, views=True, extend_existing=True, autoload_replace=True)
         return {"status": "ok", "layer": self.name, "column": field_name}
@@ -323,8 +324,9 @@ class Layer():
         res = execute_sql_and_commit(q)
         self.columns.pop(field_name)
         if self.name == 'projects_attrs':
+            drop_q = text("DROP VIEW IF EXISTS skolkovo_layers.projects_full")
             q = get_refresh_projects_view_query(self.columns)
-            execute_sql_and_commit(q)
+            execute_sql_and_commit([drop_q, q])
         
         #TODO: вомзожно, это можно убрать, ведь таблица рефлексируется при каждой инициализации класса
         LAYERS_META = MetaData(schema="skolkovo_layers")
@@ -489,8 +491,9 @@ class Layer():
 #
     #    #layer.to_sql(self.name, ENGINE, schema="skolkovo_layers", if_exists='replace', index=False)
     #    if self.name == 'projects_attrs':
+    #        drop_q = text("DROP VIEW IF EXISTS skolkovo_layers.projects_full")
     #        q = get_refresh_projects_view_query(self.columns)
-    #        execute_sql_and_commit(q)
+    #        execute_sql_and_commit([drop_q, q])
 #
     #    LAYERS_META.reflect(bind=ENGINE, views=True, extend_existing=True, autoload_replace=True)
     #    clear_geoserver_cache(self.name)
