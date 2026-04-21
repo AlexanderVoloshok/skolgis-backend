@@ -258,6 +258,7 @@ def get_refresh_projects_view_query(columns: List[Dict]):
     ]
 
     project_attrs_select_parts.extend([f"p.{col}" for col in columns.keys() if col != 'id'])
+    project_attrs_select_parts.append("p.func_purpose || ', ' || p.stage as func_purpose_stage")
 
     first_select_sql = " SELECT " + ",\n        ".join(project_attrs_select_parts) + f"""
         FROM skolkovo_layers.{attrs_table} p
