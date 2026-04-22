@@ -47,8 +47,8 @@ COPY . /skolgis_backend
 RUN pip3 install -r requirements.txt
 
 # права на entrypoint
-RUN chmod +x /src/cleanup/entrypoint.sh
+#RUN chmod +x /src/cleanup/entrypoint.sh
 
-ENTRYPOINT ["/app/entrypoint.sh"]
+#ENTRYPOINT ["/app/entrypoint.sh"]
 
 CMD ["gunicorn", "-w", "3", "-b", "0.0.0.0:5000", "src.main:app"]
