@@ -258,11 +258,14 @@ def get_refresh_projects_view_query(columns: List[Dict]):
     ]
 
     project_attrs_select_parts.extend([f"p.{col}" for col in columns.keys() if col != 'id'])
-    project_attrs_select_parts.append("p.func_purpose || ', ' || p.stage as func_purpose_stage")
+    project_attrs_select_parts.append("(dfp.code || ' '::text) || ds.code AS func_purpose_stage")
 
     first_select_sql = " SELECT " + ",\n        ".join(project_attrs_select_parts) + f"""
         FROM skolkovo_layers.{attrs_table} p
-        LEFT JOIN b_by_project b ON b.project_id = p.id"""
+        LEFT JOIN b_by_project b ON b.project_id = p.id
+        LEFT JOIN skolkovo_general.dict_func_purpose dfp on p.func_purpose = dfp.name
+        LEFT JOIN skolkovo_general.dict_stage ds on p.stage = ds.name
+    """
 
     # 2) Второй SELECT:
     #    id = NULL::<тип project_id> AS id
