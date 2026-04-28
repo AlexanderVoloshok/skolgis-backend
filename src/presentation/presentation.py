@@ -236,22 +236,48 @@ class PresentationCreator():
         """, crs=4326)
         surrounding = read_postgis(f"""
             WITH target AS (
-              SELECT project_id, name, ST_Transform(ST_MakeValid(geom), 4326) AS g4326 FROM skolkovo_layers.projects_full
-              WHERE project_id = '{project_id}'
+                SELECT
+                    id,
+                    project_id,
+                    name,
+                    year_entered,
+                    ST_Transform(ST_MakeValid(geom), 4326) AS g4326
+                FROM skolkovo_layers.projects_full
+                WHERE project_id = {project_id}
+            ),
+
+            nearest AS (
+                SELECT DISTINCT ON (p.id)
+                    p.id,
+                    p.project_id,
+                    p.name,
+                    p.year_entered,
+                    ST_Transform(ST_MakeValid(p.geom), 4326) AS geom,
+                    ST_Distance(
+                        t.g4326::geography,
+                        ST_Transform(ST_MakeValid(p.geom), 4326)::geography
+                    ) AS distance_m
+                FROM target t
+                JOIN skolkovo_layers.projects_full p
+                    ON p.id <> t.id
+                ORDER BY
+                    p.id,
+                    ST_Distance(
+                        t.g4326::geography,
+                        ST_Transform(ST_MakeValid(p.geom), 4326)::geography
+                    )
             )
-            SELECT p.project_id, p.name, p.year_entered, p.geom, round((ST_Area(ST_Transform(ST_MakeValid(p.geom), 4326)::geography) / 10000)::numeric, 3) AS calc_area,
-              -- дистанция в метрах
-              round(
-                ST_Distance(
-                  ST_Transform(ST_MakeValid(p.geom), 4326)::geography,
-                  t.g4326::geography
-                )::numeric
-              , 3) AS distance_m
-            FROM skolkovo_layers.projects_full p
-            CROSS JOIN target t
-            WHERE p.project_id <> t.project_id
+
+            SELECT
+                id,
+                project_id,
+                name,
+                geom,
+                year_entered,
+                distance_m
+            FROM nearest
             ORDER BY distance_m
-            LIMIT 4;
+            LIMIT 2;
         """, crs=4326)
         map_bytes = self.render_project_map_png(obj_gdf, surrounding)
         project_render_bytes, project_render_filename = get_media_by_fid(int(obj_gdf.loc[0, 'id']), "render")
