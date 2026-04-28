@@ -286,7 +286,7 @@ class PresentationCreator():
         attrs['project_render_filename'] = f'{Config.SERVER_ROOT}/{Config.APP_ROOT}/attachment/{project_render_filename}' if project_render_filename is not None else ''
         attrs['year_entered'] = int(attrs['year_entered']) if attrs['year_entered'] is not None else None
         attrs['spp_gab'] = int(attrs['spp_gab']) if attrs['spp_gab'] is not None else None
-        attrs['parcel_area_ga'] = round(attrs['parcel_area_ga'], 3)
+        attrs['parcel_area_ga'] = round(attrs['parcel_area_ga'], 3) if attrs['parcel_area_ga'] else None
 
         return {
             "map_bytes": map_bytes,
