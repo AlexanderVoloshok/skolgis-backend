@@ -300,7 +300,7 @@ def get_refresh_projects_view_query(columns: List[Dict]):
         WITH b_by_project AS (
             SELECT
                 mb.project_id,
-                st_collect(mb.geom) AS geom,
+                ST_CollectionExtract(st_collect(mb.geom), 3) AS geom,
                 string_agg(mb.id::text, ','::text) AS fids
             FROM skolkovo_layers.{buildings_table} mb
             WHERE mb.project_id IS NOT NULL
