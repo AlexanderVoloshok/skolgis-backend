@@ -150,21 +150,21 @@ class Layer():
                 st_transform(ST_GeomFromText('POINT({x} {y})', 3857), 4326)
             , lyr.geom, {0.0001 if not_polygon else 0})
         """
-        feature = read_postgis(q)
-        if len(feature) == 0:
+        features = read_postgis(q)
+        if len(features) == 0:
             return {"type": "FeatureCollection", "features": [], 'files': []}
-        fid = feature.loc[0, 'id']
-        feature = json.loads(feature.to_json(default=str))
-        if fid is None:
+        fids = [str(f) for f in features['id'].to_list()]
+        features = json.loads(features.to_json(default=str))
+        if fids is None:
             files = []
         else:
             files = read_sql(f"""
-                select * from skolkovo_general.file_attachments where layer = '{self.name}' and fid = {fid}
+                select * from skolkovo_general.file_attachments where layer = '{self.name}' and fid in ({", ".join(fids)}) 
             """)
             files = json.loads(files.to_json(orient="records"))
 
-        feature['files'] = files
-        return feature
+        features['files'] = files
+        return features
 
 
     def get_extent(self, crs:int=3857):
