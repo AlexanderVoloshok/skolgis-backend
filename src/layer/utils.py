@@ -265,33 +265,7 @@ def get_refresh_projects_view_query(columns: List[Dict]):
         LEFT JOIN b_by_project b ON b.project_id = p.id
         LEFT JOIN skolkovo_general.dict_func_purpose dfp on p.func_purpose = dfp.name
         LEFT JOIN skolkovo_general.dict_stage ds on p.stage = ds.name
-    """
-
-    # 2) Второй SELECT:
-    #    id = NULL::<тип project_id> AS id
-    #    затем по всем колонкам либо override, либо NULL::<type> AS <col>
-    project_id_col = next((c for c in columns.items() if c[0] == "id"), None)
-    if not project_id_col:
-        raise ValueError("В таблице projects_attrs не найдена колонка id")
-
-    second_select_parts = [
-        f"NULL::{project_id_col[1]} AS id",
-        "mb.geom",
-        "mb.id::text AS fids",
-    ]
-
-    for col in columns.items():
-        col_name = col[0]
-        col_type = col[1]
-
-        if col_name in buildings_select_overrides:
-            second_select_parts.append(buildings_select_overrides[col_name])
-        else:
-            second_select_parts.append(f"NULL::{col_type} AS {col_name}")
-
-    second_select_sql = " SELECT " + ",\n        ".join(second_select_parts) + f"""
-        FROM skolkovo_layers.{buildings_table} mb
-        WHERE mb.project_id IS NULL
+        WHERE b.geom is not null OR p.name is not null OR p.func_purpose is not null;
     """
 
     sql = f"""
@@ -309,9 +283,6 @@ def get_refresh_projects_view_query(columns: List[Dict]):
         {first_select_sql}
         
     """.strip()
-
-    # UNION ALL
-    # {second_select_sql};
 
     return text(sql)
 

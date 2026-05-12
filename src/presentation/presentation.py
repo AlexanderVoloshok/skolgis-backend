@@ -28,7 +28,6 @@ from src.config import MAIN_META
 from src.aliases import FieldAlias
 from src.presentation.utils import get_media_by_fid
 from src.sql_utils import read_postgis
-from src.config import Config
 from src.utils import timeit
 
 files_table = MAIN_META.tables['skolkovo_general.file_attachments'] 
@@ -158,7 +157,7 @@ class PresentationCreator():
         dpi: int = 220
         padding_ratio: float = 0.06
         obj_edgecolor: str = "#4240C5"
-        obj_lw: float = 1.5
+        obj_lw: float = 1
         obj_facecolor: str = "#5374E1"   # голубой
         surr_edgecolor = "#2F2F2F"
         surr_facecolor = "#696969" 
@@ -280,18 +279,17 @@ class PresentationCreator():
             LIMIT 2;
         """, crs=4326)
         map_bytes = self.render_project_map_png(obj_gdf, surrounding)
-        project_render_bytes, project_render_filename = get_media_by_fid(int(obj_gdf.loc[0, 'id']), "render")
+        project_renders = get_media_by_fid(int(obj_gdf.loc[0, 'id']), "render")
 
         attrs = obj_gdf.to_dict(orient="records")[0]
-        attrs['project_render_filename'] = f'{Config.SERVER_ROOT}/{Config.APP_ROOT}/attachment/{project_render_filename}' if project_render_filename is not None else ''
         attrs['year_entered'] = int(attrs['year_entered']) if attrs['year_entered'] is not None else None
         attrs['spp_gab'] = int(attrs['spp_gab']) if attrs['spp_gab'] is not None else None
         attrs['parcel_area_ga'] = round(attrs['parcel_area_ga'], 3) if attrs['parcel_area_ga'] else None
 
         return {
             "map_bytes": map_bytes,
-            'project_render': project_render_bytes,
-            'surrounding_renders': [get_media_by_fid(int(row['project_id']), "render")[0] for _, row in surrounding.iterrows()],
+            'project_render_1': project_renders[0][0] if len(project_renders) > 0 else None,
+            'project_render_2': project_renders[1][0] if len(project_renders) > 1 else None,
             "attributes": attrs,
             "surrounding": surrounding.to_dict(orient="records")
         }
@@ -376,15 +374,13 @@ class PresentationCreator():
             replace_picture(slide, "MapImage", payload["map_bytes"])
             fill_attributes(slide, payload['attributes'])
 
-            if payload['project_render'] is not None:
-                replace_picture(slide, "ProjectRender", payload['project_render'])
+            if payload['project_render_1'] is not None:
+                replace_picture(slide, "ProjectRender_1", payload['project_render_1'])
+            if payload['project_render_2'] is not None:
+                replace_picture(slide, "ProjectRender_2", payload['project_render_2'])
 
-            for idx, render in enumerate(payload['surrounding_renders'][0:2]):
-                if render is not None:
-                    replace_picture(slide, f"surrounding_render_{idx+1}", render)
-
-            for idx, item in enumerate(payload["surrounding"][0:2]):
-                fill_attributes(slide, {f'surrounding_title_{idx+1}': item['name']})
+            #for idx, item in enumerate(payload["surrounding"][0:2]):
+            #    fill_attributes(slide, {f'surrounding_title_{idx+1}': item['name']})
 
         self._delete_slide(1)
         buf = BytesIO()
