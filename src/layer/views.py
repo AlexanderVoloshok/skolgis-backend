@@ -58,10 +58,10 @@ def export_layer(layer_name: str):
     if file_type not in Config.ALLOWED_EXPORT_FILETYPES:
         return {'status': 'bad', 'error': 'Недопустимое расширение файла'}, 403
     ids = request.args.get('ids', '').split(";")
-
+    filters = request.args.get('filter', [])
     user = User()
     layer = Layer(layer_name, user)
-    filename = layer.export(file_type, ids)
+    filename = layer.export(file_type, filters=filters, feature_ids=ids)
     if filename is None:
         return "Файл пустой", 401
     return {'status': 'ok', "url": filename}

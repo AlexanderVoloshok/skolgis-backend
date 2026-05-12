@@ -3,11 +3,12 @@ import geopandas as gpd
 import fiona
 from datetime import datetime, time, date
 from werkzeug.datastructures import FileStorage
-from typing import Union
+from typing import Union, List, Dict, Any
 from shapely.geometry import shape
-from sqlalchemy import select, text, exc, sql, func, literal, Column, MetaData
+from sqlalchemy import select, text, exc, sql, func, literal, Column, MetaData, Numeric, LargeBinary
 from geoalchemy2.shape import from_shape
-from geoalchemy2 import Geometry
+from geoalchemy2 import Geometry, Geography
+from shapely import wkb
 from src.aliases import FieldAlias
 from src.config import Config, ENGINE, MAIN_META, LAYERS_META
 from src.geom_utils import parse_geometry, reproject_to_wgs, get_geom_type, enforce_geom_type
@@ -340,7 +341,7 @@ class Layer():
         return {"status": "ok", "layer": self.name, "column": field_name}
 
 
-    def export(self, file_type: str, feature_ids: list = []):
+    def export(self, file_type: str, filters: List[Dict[str, Any]] = [], feature_ids: list = []):
         """Сохраняет слой в файл указанного формата
         """
 
@@ -348,15 +349,40 @@ class Layer():
         filename = f'{alias}_{str(datetime.now()).split(".")[0].replace(":", "_")}.{file_type}'
         file_path = f'{Config.UPLOAD_FOLDER}/tmp/{filename}'
         is_polygon = self.geom_type in ('POLYGON', 'MULTIPOLYGON')
-        calc_area = ', round((ST_Area(ST_Transform(ST_MakeValid(geom), 4326)::geography)/ 10000)::numeric,  3) as calc_area'
-        where = f'WHERE id in ({", ".join(feature_ids)})' if len(feature_ids) > 0 and feature_ids != [''] else ''
 
-        q = f"""
-            SELECT *{calc_area if file_type == 'xlsx' and is_polygon else ''} FROM skolkovo_layers.{self.name}
-            {where}
-            {'LIMIT 1048575' if file_type == 'xlsx' else ''}
-        """
-        gdf = read_postgis(q)
+        columns = [
+            c for c in self.layer_table.columns
+            if c.name != 'geom'
+        ]
+
+        geom_expr = func.ST_AsBinary(self.layer_table.c.geom).cast(LargeBinary).label('geom')
+        select_columns = [*columns, geom_expr]
+
+        if file_type == 'xlsx' and is_polygon:
+            calc_area = func.round(
+                (
+                    func.ST_Area(
+                        func.ST_Transform(func.ST_MakeValid(self.layer_table.c.geom), 4326).cast(Geography)
+                    ) / 10000
+                ).cast(Numeric),
+                3
+            ).label('calc_area')
+            select_columns.append(calc_area)
+
+        stmt = select(*select_columns)
+        if len(filters) > 0:
+            ALLOWED_COLUMNS = {c.name: c for c in self.layer_table.columns}
+            where_expr = build_where(filters, ALLOWED_COLUMNS)
+            stmt = stmt.where(where_expr)
+        elif len(feature_ids) > 0 and feature_ids != ['']:
+            stmt = stmt.where(self.layer_table.c.id.in_(feature_ids))
+        
+        if file_type == 'xlsx':
+            stmt = stmt.limit(1048575)
+
+        df = read_sql(stmt)
+        df['geom'] = df['geom'].apply(lambda x: wkb.loads(bytes(x)) if x is not None else None)
+        gdf = gpd.GeoDataFrame(df, geometry='geom', crs='EPSG:4326')
 
         if len(gdf) < 1:
             return
@@ -464,40 +490,6 @@ class Layer():
         if len(layer) > 0:
             output['bbox'] = list(layer.to_crs(3857).geometry.total_bounds)
         return output
-
-    #def replace_attributes_from_file(self, file: FileStorage):
-    #    """ОБновляет таблицу атрибутов слоя из xlsx-файла
-    #    """
-    #    layer = pd.read_excel(file)
-#
-    #    unwanted_columns = ('id', 'calc_area', 'geom', 'geometry')
-    #    for c in unwanted_columns:
-    #        if c in layer.columns:
-    #            layer = layer.drop(columns=[c])
-#
-    #    layer.columns = [c.lower() for c in layer.columns]
-#
-    #    unwanted_column_names = set.intersection(set(layer.columns), consts.RESERVED_WORDS)
-    #    if len(unwanted_column_names) > 0:
-    #        return {"status": "bad", "error": f"Недоспустимые имена колонок {', '.join(unwanted_column_names)}. Их необходимо переименовать"}, 403
-    #    
-    #    if self.name in ('projects_attrs', 'main_buildings'):
-    #        PROTECTED_COLUMN_NAMES = consts.PROTECTED_COLUMN_NAMES if self.name == 'main_buildings' else [n for n in self.PROTECTED_COLUMN_NAMES if n != 'project_id']
-#
-    #        required_column_names = set(PROTECTED_COLUMN_NAMES)
-    #        missing_column_names = set.difference(required_column_names, set(layer.columns))
-    #        if len(missing_column_names) > 0:
-    #            return {"status": "bad", "error": f"Отсутствуют колонки {', '.join(missing_column_names)}. Их необходимо добавить"}, 403
-#
-    #    #layer.to_sql(self.name, ENGINE, schema="skolkovo_layers", if_exists='replace', index=False)
-    #    if self.name == 'projects_attrs':
-    #        drop_q = text("DROP VIEW IF EXISTS skolkovo_layers.projects_full")
-    #        q = get_refresh_projects_view_query(self.columns)
-    #        execute_sql_and_commit([drop_q, q])
-#
-    #    LAYERS_META.reflect(bind=ENGINE, views=True, extend_existing=True, autoload_replace=True)
-    #    clear_geoserver_cache(self.name)
-    #    return {"status": "ok"}
 
 
     def _update_layers_table(self, payload: dict):

@@ -4,10 +4,11 @@ import typing as ty
 from sqlalchemy import text, Select
 from src.config import ENGINE
 
-def read_sql(query: str, params: tuple = ()):
+def read_sql(query: ty.Union[str, Select], params: tuple = ()):
+    sql_text = text(query) if isinstance(query, str) else query.compile(ENGINE, compile_kwargs={"literal_binds": True}).string
     with ENGINE.connect() as conn:
         try:
-            df = pd.read_sql(text(query), ENGINE, params=params)
+            df = pd.read_sql(sql_text, ENGINE, params=params)
             return df
         except Exception as e:
             raise e
