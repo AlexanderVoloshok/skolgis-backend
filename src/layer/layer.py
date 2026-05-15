@@ -14,7 +14,7 @@ from src.config import Config, ENGINE, MAIN_META, LAYERS_META
 from src.geom_utils import parse_geometry, reproject_to_wgs, get_geom_type, enforce_geom_type
 from src.sql_utils import read_sql, read_postgis, execute_sql_query, execute_sql_and_commit
 from src.layer.utils import parse_order, build_where, resolve_type, add_category_totals, bold_total_rows, get_refresh_projects_view_query, reflect_layer_table
-from src.layer.geoserver import clear_geoserver_cache
+from src.layer.geoserver import clear_geoserver_cache, publish_on_geoserver
 from src.layer.kml import parse_kml
 import src.consts as consts
 from src.utils import get_logger
@@ -484,6 +484,8 @@ class Layer():
         layer.to_postgis(payload['table_name'], ENGINE, schema="skolkovo_layers", if_exists='replace', index=False)
         cls.add_primary_key(cls, payload['table_name'], replace="id" in layer.columns)
         LAYERS_META.reflect(bind=ENGINE, views=True)
+
+        publish_on_geoserver(payload['table_name'])
 
         df = read_sql("SELECT * FROM skolkovo_general.layers where id = %s", params=(updated_layer_id,))
         output['layer'] = df.to_dict(orient="records")[0]

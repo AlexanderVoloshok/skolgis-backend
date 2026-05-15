@@ -6,7 +6,7 @@ RESERVED_WORDS = {
     'collation', 'column', 'concurrently', 'constraint', 'create', 'cross', 'current_catalog',
     'current_date', 'current_role', 'current_schema', 'current_time', 'current_timestamp',
     'current_user', 'default', 'deferrable', 'desc', 'distinct', 'do', 'else', 'end', 'except',
-    'false', 'fetch', 'for', 'foreign', 'from', 'full', 'grant', 'group', 'geom', 'geometry', 'having', 'ilike',
+    'false', 'fetch', 'for', 'foreign', 'from', 'full', 'grant', 'group', 'having', 'ilike',
     'in', 'initially', 'inner', 'intersect', 'into', 'is', 'isnull', 'id', 'join', 'lateral', 'leading',
     'left', 'like', 'limit', 'localtime', 'localtimestamp', 'natural', 'not', 'notnull', 'null',
     'offset', 'on', 'only', 'or', 'order', 'outer', 'overlaps', 'placing', 'primary', 'references',

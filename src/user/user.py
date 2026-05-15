@@ -43,6 +43,7 @@ class User():
         df = read_sql(f"""
             SELECT id, source, table_name, alias, layers_type_id, geom_type, style_json, is_on, has3D, ext_params
             FROM skolkovo_general.layers WHERE layers_type_id in {layers_type_id}
+            ORDER BY id
         """)
         return df.to_json(orient="records")
     
