@@ -18,6 +18,8 @@ services:
       - GEOSERVER_WORKSPACE=skolkgis
       - GEOSERVER_STORE_NAME=skolgis_postgis
       - PROXY_BASE_URL=http://89.223.68.75/geoserver/
+    volumes:
+      - ./src/files:/src/files
   geoserver:
     image: kartoza/geoserver:2.20.1
     container_name: geoserver
