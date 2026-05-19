@@ -282,7 +282,6 @@ class PresentationCreator():
         project_renders = get_media_by_fid(int(obj_gdf.loc[0, 'id']), "render")
 
         surrRenders = [get_media_by_fid(int(row['project_id']), "render")[0] for _, row in surrounding.iterrows()]
-
         attrs = obj_gdf.to_dict(orient="records")[0]
         attrs['year_entered'] = int(attrs['year_entered']) if attrs['year_entered'] is not None else None
         attrs['spp_gab'] = int(attrs['spp_gab']) if attrs['spp_gab'] is not None else None
@@ -383,8 +382,10 @@ class PresentationCreator():
             if payload['project_render_2'] is not None:
                 replace_picture(slide, "ProjectRender_2", payload['project_render_2'])
 
-            #for idx, item in enumerate(payload["surrounding"][0:2]):
-            #    fill_attributes(slide, {f'surrounding_title_{idx+1}': item['name']})
+            if payload['SurrRender_1'] is not None:
+                replace_picture(slide, "SurrRender_1", payload['SurrRender_1'])
+            if payload['SurrRender_2'] is not None:
+                replace_picture(slide, "SurrRender_2", payload['SurrRender_2'])
 
         self._delete_slide(1)
         buf = BytesIO()
