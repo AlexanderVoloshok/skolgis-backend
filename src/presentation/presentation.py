@@ -132,7 +132,7 @@ def fill_attributes(slide, attributes: dict[str, object]) -> None:
             p0.text = text
 
 class PresentationCreator():
-    PRESENTATION_TEMPLATE = Presentation("src/assets/slide_sample.pptx")
+    PRESENTATION_TEMPLATE = Presentation("d:/Angular/skolgis-backend/src/assets/slide_sample.pptx")
 
     def __init__(self, project_ids: List[int]):
         self.project_ids = project_ids
@@ -281,6 +281,8 @@ class PresentationCreator():
         map_bytes = self.render_project_map_png(obj_gdf, surrounding)
         project_renders = get_media_by_fid(int(obj_gdf.loc[0, 'id']), "render")
 
+        surrRenders = [get_media_by_fid(int(row['project_id']), "render")[0] for _, row in surrounding.iterrows()]
+
         attrs = obj_gdf.to_dict(orient="records")[0]
         attrs['year_entered'] = int(attrs['year_entered']) if attrs['year_entered'] is not None else None
         attrs['spp_gab'] = int(attrs['spp_gab']) if attrs['spp_gab'] is not None else None
@@ -290,6 +292,8 @@ class PresentationCreator():
             "map_bytes": map_bytes,
             'project_render_1': project_renders[0][0] if len(project_renders) > 0 else None,
             'project_render_2': project_renders[1][0] if len(project_renders) > 1 else None,
+            "SurrRender_1": surrRenders[0][0] if len(surrRenders) > 0 else None,
+            "SurrRender_2": surrRenders[1][0] if len(surrRenders) > 1 else None,
             "attributes": attrs,
             "surrounding": surrounding.to_dict(orient="records")
         }
