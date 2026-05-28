@@ -33,7 +33,7 @@ class Config():
     JWT_LIFETIME = timedelta(days=7)
     UPLOAD_FOLDER = os.path.dirname(os.path.realpath(__file__)) + '/files'
 
-    SERVER_ROOT = 'http://89.223.68.75'
+    SERVER_ROOT = os.getenv('SERVER_ROOT', 'http://89.223.68.75')
 
     GEOSERVER_ROOT = os.getenv('PROXY_BASE_URL', f'{SERVER_ROOT}/geoserver')
     GEOSERVER_USER = os.getenv('GEOSERVER_ADMIN_USER')

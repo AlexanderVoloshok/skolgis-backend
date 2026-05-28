@@ -392,13 +392,3 @@ class PresentationCreator():
         self.PRESENTATION_TEMPLATE.save(buf)
         buf.seek(0)
         return buf
-
-
-
-if __name__ == '__main__':
-    project_ids = [34, 60]
-
-    pres = PresentationCreator(project_ids)
-    pres.fill_presentation()
-
-    pres.PRESENTATION_TEMPLATE.save('d:/Angular/skolgis-backend/output.pptx')
