@@ -53,4 +53,4 @@ class Config():
     PROJECT_NAME = os.getenv("PROJECT_NAME", "Skolkovo GIS")
     INVITE_TTL_HOURS = int(os.getenv("INVITE_TTL_HOURS", "24"))  # срок жизни приглашения
 
-    FRONTEND_URL = f'{SERVER_ROOT}/skolgis-frontend'
+    FRONTEND_URL = f'{SERVER_ROOT}/skolgis-frontend' if SERVER_ROOT.startswith("http") else f'http://{SERVER_ROOT}/skolgis-frontend'

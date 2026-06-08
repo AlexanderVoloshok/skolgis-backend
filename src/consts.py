@@ -15,8 +15,8 @@ RESERVED_WORDS = {
     'when', 'where', 'window', 'with'
 }
 
-PROTECTED_COLUMN_NAMES = ('project_id', 'name', 'func_purpose', 'parcel_area_ga', 'floors', 'spp_gab', 'surface_area_m2', 
-             'stage', 'investor', 'cadnums', 'year_entered', 'addings')
+PROTECTED_COLUMN_NAMES = ('project_id', 'name', 'func_purpose', 'parcel_area_ga', 'floors', 'spp_gab', 'area_m2', 'stage', 'investor', 'year_entered', 'addings')
+
 
 class UserRoles(enum.Enum):
     VISITOR = "visitor"

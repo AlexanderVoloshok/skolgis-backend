@@ -1,12 +1,12 @@
 version: "1"
 networks:
-  sklkv:
+  skolgis-project_sklkv :
     external: true
-    name: sklkv
+    name: skolgis-project_sklkv 
 services:
   backend:
     networks:
-      - sklkv
+      - skolgis-project_sklkv 
     build: .
     container_name: skolgis-backend
     ports:
@@ -25,7 +25,7 @@ services:
     container_name: skolgis-geoserver
     restart: on-failure
     networks:
-      - sklkv
+      - skolgis-project_sklkv 
     volumes:
       - geoserver_data:/opt/geoserver/data_dir
     ports:
@@ -59,10 +59,10 @@ services:
       retries: 7
   postgres:
     container_name: skolgis-pg
-    image: postgis/postgis:11-3.3
+    image: postgis/postgis:17-3.5
     restart: on-failure
     networks:
-      - sklkv
+      - skolgis-project_sklkv 
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: uB8F3E37riRQGmxqtipj
@@ -76,7 +76,7 @@ services:
   #  container_name: skolgis-nginx
   #  restart: on-failure
   #  networks:
-  #    - sklkv
+  #    - skolgis-project_sklkv 
   #  volumes:
   #    - ./nginx/nginx.conf:/etc/nginx/conf.d/nginx.conf
   #    - ./nginx/locations.conf:/etc/nginx/conf.d/locations/locations.conf

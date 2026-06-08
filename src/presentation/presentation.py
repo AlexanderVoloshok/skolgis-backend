@@ -184,7 +184,7 @@ class PresentationCreator():
         # ---------- СПУТНИКОВАЯ OPEN-SOURCE ПОДЛОЖКА ----------
         try:
             cx.add_basemap(ax, source=cx.providers.OpenStreetMap.Mapnik, attribution=False, zorder=0)
-        except ReadTimeout:
+        except:
             pass
 
         obj.plot(ax=ax, facecolor=obj_facecolor, edgecolor=obj_edgecolor, linewidth=obj_lw, alpha=opacity, zorder=20)
