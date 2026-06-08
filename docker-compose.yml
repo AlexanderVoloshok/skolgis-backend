@@ -14,10 +14,10 @@ services:
     restart: on-failure
     environment:
       - GEOSERVER_ADMIN_USER=skolkovoroot
-      - GEOSERVER_ADMIN_PASSWORD=MEWt3wneYVZy2cPvr3j6
+      - GEOSERVER_ADMIN_PASSWORD=MEWt3wneYVZy2cPvr3j4
       - GEOSERVER_WORKSPACE=skolkgis
       - GEOSERVER_STORE_NAME=skolgis_postgis
-      - PROXY_BASE_URL=http://192.168.45.237:3000/geoserver/
+      - PROXY_BASE_URL=http://192.168.45.237:8080/geoserver/
     volumes:
       - ./src/files:/src/files
   geoserver:
