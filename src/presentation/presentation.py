@@ -281,7 +281,12 @@ class PresentationCreator():
         map_bytes = self.render_project_map_png(obj_gdf, surrounding)
         project_renders = get_media_by_fid(int(obj_gdf.loc[0, 'id']), "render")
 
-        surrRenders = [get_media_by_fid(int(row['project_id']), "render")[0] for _, row in surrounding.iterrows()]
+        surrRenders = []
+        for _, row in surrounding.iterrows():
+            media = get_media_by_fid(int(row['project_id']), "render")
+            if len(media) > 0:
+                surrRenders.append(media[0])
+
         attrs = obj_gdf.to_dict(orient="records")[0]
         attrs['year_entered'] = int(attrs['year_entered']) if attrs['year_entered'] is not None else None
         attrs['spp_gab'] = int(attrs['spp_gab']) if attrs['spp_gab'] is not None else None
