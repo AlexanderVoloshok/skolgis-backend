@@ -231,6 +231,9 @@ class Layer():
         for k,v in attrs.items():
             if self.columns[k] in ('INTEGER', 'DOUBLE PRECISION') and v == '':
                 attrs[k] = None
+        if len(attrs.items()) == 0:
+            return {"status": "ok", "layer": self.name}
+        
         q = self.layer_table.update()\
             .where(self.layer_table.c.id == id)\
             .values(attrs)
