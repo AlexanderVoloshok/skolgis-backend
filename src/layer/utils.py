@@ -93,6 +93,8 @@ def build_where(filters_raw: Any, columns: Dict[str, Column[Any]]) -> BinaryExpr
             if op == "<":   clauses.append(col <  value)
             if op == "<=":  clauses.append(col <= value)
 
+    #clauses.append(columns['geom'] != None)
+
     return and_(*clauses) if clauses else true()
 
 def parse_order(raw: Optional[str]) -> List[Tuple[str, str]]:
@@ -136,7 +138,7 @@ def add_category_totals(
     category_col: str,
     total_label_col: Optional[str] = None,
     grand_total_text: str = "ИТОГО",
-    exclude_sum_cols: Optional[List[str]] = None,
+    exclude_sum_cols: Optional[List[str]] = ['project_id', 'id'],
     keep_geometry: bool = False,
 ) -> pd.DataFrame:
     """
@@ -173,6 +175,8 @@ def add_category_totals(
 
     # Сохраняем исходный порядок категорий
     categories = df[category_col].drop_duplicates().tolist()
+    if None in categories:
+        categories.remove(None)
 
     parts = []
 

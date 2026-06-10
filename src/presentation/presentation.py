@@ -259,6 +259,7 @@ class PresentationCreator():
                 FROM target t
                 JOIN skolkovo_layers.projects_full p
                     ON p.id <> t.id
+                WHERE p.stage = 'Построено'
                 ORDER BY
                     p.id,
                     ST_Distance(

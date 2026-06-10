@@ -351,7 +351,6 @@ class Layer():
         alias = self.get_alias()
         filename = f'{alias}_{str(datetime.now()).split(".")[0].replace(":", "_")}.{file_type}'
         file_path = f'{Config.UPLOAD_FOLDER}/tmp/{filename}'
-        is_polygon = self.geom_type in ('POLYGON', 'MULTIPOLYGON')
 
         columns = [
             c for c in self.layer_table.columns
@@ -360,17 +359,6 @@ class Layer():
 
         geom_expr = func.ST_AsBinary(self.layer_table.c.geom).cast(LargeBinary).label('geom')
         select_columns = [*columns, geom_expr]
-
-        if file_type == 'xlsx' and is_polygon:
-            calc_area = func.round(
-                (
-                    func.ST_Area(
-                        func.ST_Transform(func.ST_MakeValid(self.layer_table.c.geom), 4326).cast(Geography)
-                    ) / 10000
-                ).cast(Numeric),
-                3
-            ).label('calc_area')
-            select_columns.append(calc_area)
 
         stmt = select(*select_columns)
         if len(filters) > 0:
@@ -393,15 +381,25 @@ class Layer():
         for col in gdf.columns:
             if gdf[col].apply(lambda x: isinstance(x, (time, datetime, date))).any():
                 gdf[col] = gdf[col].astype(str)
+
+        unwanted_columns = ['fids', 'func_purpose_stage', 'calc_area']
+        for c in unwanted_columns:
+            if c in gdf.columns:
+                gdf.drop(columns=[c], inplace=True)
         
         if file_type == 'xlsx':
             fields = FieldAlias()
             columns_dict = fields.get_field_aliases(orient="dict")
+
             if self.name == 'projects_full':
                 gdf = add_category_totals(gdf, 'func_purpose')
+                gdf.drop(columns=['id'], inplace=True)
+
             gdf = gdf.rename(columns=columns_dict)
-            gdf.to_excel(file_path)
-            bold_total_rows(file_path, "Sheet1", columns_dict['func_purpose'])
+            gdf.drop(columns=['geom'], inplace=True)
+            gdf.to_excel(file_path, index=False)
+            if self.name == 'projects_full':
+                bold_total_rows(file_path, "Sheet1", columns_dict['func_purpose'])
         elif file_type in ('kml', 'gpkg'):
             gdf.to_file(file_path, driver=file_type.upper())
         elif file_type == 'geojson':
