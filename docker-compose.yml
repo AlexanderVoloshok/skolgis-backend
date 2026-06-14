@@ -1,12 +1,12 @@
 version: "1"
 networks:
-  skolgis-project_sklkv :
+  skolgis-project_sklkv:
     external: true
-    name: skolgis-project_sklkv 
+    name: skolgis-project_sklkv
 services:
   backend:
     networks:
-      - skolgis-project_sklkv 
+      - skolgis-project_sklkv
     build: .
     container_name: skolgis-backend
     ports:
@@ -14,18 +14,18 @@ services:
     restart: on-failure
     environment:
       - GEOSERVER_ADMIN_USER=skolkovoroot
-      - GEOSERVER_ADMIN_PASSWORD=MEWt3wneYVZy2cPvr3j4
+      - GEOSERVER_ADMIN_PASSWORD=MEWt4wneYVZy2cPvr3j4
       - GEOSERVER_WORKSPACE=skolkgis
       - GEOSERVER_STORE_NAME=skolgis_postgis
-      - PROXY_BASE_URL=http://192.168.45.237:8080/geoserver/
+      - PROXY_BASE_URL=http://192.168.45.237/geoserver/
     volumes:
-      - ./src/files:/src/files
+      - ./src/files:/skolgis_backend/src/files
   geoserver:
     image: kartoza/geoserver:2.20.1
     container_name: skolgis-geoserver
     restart: on-failure
     networks:
-      - skolgis-project_sklkv 
+      - skolgis-project_sklkv
     volumes:
       - geoserver_data:/opt/geoserver/data_dir
     ports:
@@ -62,13 +62,13 @@ services:
     image: postgis/postgis:17-3.5
     restart: on-failure
     networks:
-      - skolgis-project_sklkv 
+      - skolgis-project_sklkv
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: uB8F3E37riRQGmxqtipj
     command: "-N 500"
     volumes:
-      - pg_data:/var/lib/postgresql/data
+      - ./pg_data:/var/lib/postgresql/data
     ports:
       - "5433:5432"
   #nginx:
@@ -76,7 +76,7 @@ services:
   #  container_name: skolgis-nginx
   #  restart: on-failure
   #  networks:
-  #    - skolgis-project_sklkv 
+  #    - sklkv
   #  volumes:
   #    - ./nginx/nginx.conf:/etc/nginx/conf.d/nginx.conf
   #    - ./nginx/locations.conf:/etc/nginx/conf.d/locations/locations.conf
