@@ -6,7 +6,7 @@ from src.layer.files import attatch_file, remove_file
 from src.user.user import User
 from src.config import Config
 from src.validation import FeaturesSchema, valid_id, valid_file, validation_chain, can_edit_layer
-from src.consts import RESERVED_WORDS, PROTECTED_COLUMN_NAMES
+from src.consts import RESERVED_WORDS, PROTECTED_COLUMN_NAMES_PROJECTS, PROTECTED_COLUMN_NAMES_PARCELS
 
 layers_bp = Blueprint('layer', __name__)
 
@@ -135,8 +135,14 @@ def delete_field(layer_name: str):
     layer = Layer(layer_name)
     if data['name'] not in layer.columns.keys():
         return {"error": f"Поля {data['name']} не существует"}, 403
-    if (layer_name == 'projects_attrs' and data['name'] in PROTECTED_COLUMN_NAMES) or data['name'] in ('id', 'project_id', 'geom', 'geometry'):
+    #TODO: PROTECTED_COLUMN_NAMES определять запросом к бд
+    if data['name'] in ('id', 'project_id', 'geom', 'geometry'):
         return {"error": f"Поле {data['name']} защищённое. Его нельзя удалить"}, 403
+    if (layer_name == 'projects_attrs' and data['name'] in PROTECTED_COLUMN_NAMES_PROJECTS):
+        return {"error": f"Поле {data['name']} защищённое. Его нельзя удалить"}, 403
+    elif (layer_name == 'layer_32' and data['name'] in PROTECTED_COLUMN_NAMES_PARCELS):
+        return {"error": f"Поле {data['name']} защищённое. Его нельзя удалить"}, 403
+    
     return layer.delete_field(data['name'])
 
 

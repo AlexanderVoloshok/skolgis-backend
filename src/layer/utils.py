@@ -290,6 +290,18 @@ def get_refresh_projects_view_query(columns: List[Dict]):
 
     return text(sql)
 
+
+def get_refresh_parcels_view_query():
+    sql = """CREATE OR REPLACE VIEW skolkovo_layers.parcels
+        AS SELECT p.*, (dfp.code::text || ' '::text) || ds.code::text AS func_purpose_stage
+        FROM skolkovo_layers.layer_32 p
+             LEFT JOIN skolkovo_general.dict_func_purpose dfp ON p.objects_type = dfp.name::text
+             LEFT JOIN skolkovo_general.dict_stage ds ON p.status = ds.name::text;
+    """.strip()
+
+    return text(sql)
+
+
 def reflect_layer_table(name: str):
     meta = MetaData()
     return Table(

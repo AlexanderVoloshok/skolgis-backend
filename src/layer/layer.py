@@ -5,15 +5,15 @@ from datetime import datetime, time, date
 from werkzeug.datastructures import FileStorage
 from typing import Union, List, Dict, Any
 from shapely.geometry import shape
-from sqlalchemy import select, text, exc, sql, func, literal, Column, MetaData, Numeric, LargeBinary
+from sqlalchemy import select, text, exc, sql, func, literal, Column, MetaData, LargeBinary
 from geoalchemy2.shape import from_shape
-from geoalchemy2 import Geometry, Geography
+from geoalchemy2 import Geometry
 from shapely import wkb
 from src.aliases import FieldAlias
 from src.config import Config, ENGINE, MAIN_META, LAYERS_META
 from src.geom_utils import parse_geometry, reproject_to_wgs, get_geom_type, enforce_geom_type
 from src.sql_utils import read_sql, read_postgis, execute_sql_query, execute_sql_and_commit
-from src.layer.utils import parse_order, build_where, resolve_type, add_category_totals, bold_total_rows, get_refresh_projects_view_query, reflect_layer_table
+from src.layer.utils import parse_order, build_where, resolve_type, add_category_totals, bold_total_rows, get_refresh_projects_view_query, get_refresh_parcels_view_query, reflect_layer_table
 from src.layer.geoserver import clear_geoserver_cache, publish_on_geoserver
 from src.layer.kml import parse_kml
 import src.consts as consts
@@ -315,6 +315,10 @@ class Layer():
             drop_q = text("DROP VIEW IF EXISTS skolkovo_layers.projects_full")
             q = get_refresh_projects_view_query(self.columns)
             execute_sql_and_commit([drop_q, q])
+        elif self.name == 'layer_32':
+            drop_q = text("DROP VIEW IF EXISTS skolkovo_layers.parcels")
+            q = get_refresh_parcels_view_query()
+            execute_sql_and_commit([drop_q, q])
 
         LAYERS_META.reflect(bind=ENGINE, views=True, extend_existing=True, autoload_replace=True)
         return {"status": "ok", "layer": self.name, "column": field_name}
@@ -324,14 +328,21 @@ class Layer():
         if self.name == 'projects_attrs':
             q = text("drop view skolkovo_layers.projects_full")
             execute_sql_and_commit(q)
+        elif self.name == 'layer_32':
+            q = text("drop view skolkovo_layers.parcels")
+            execute_sql_and_commit(q)
+
         q = text(f'ALTER TABLE skolkovo_layers.{self.name} DROP COLUMN IF EXISTS {field_name}')
         res = execute_sql_and_commit(q)
         self.columns.pop(field_name)
-        if self.name == 'projects_attrs':
-            drop_q = text("DROP VIEW IF EXISTS skolkovo_layers.projects_full")
-            q = get_refresh_projects_view_query(self.columns)
-            execute_sql_and_commit([drop_q, q])
         
+        if self.name == 'projects_attrs':
+            q = get_refresh_projects_view_query(self.columns)
+            execute_sql_and_commit(q)
+        elif self.name == 'layer_32':
+            q = get_refresh_parcels_view_query()
+            execute_sql_and_commit(q)
+
         #TODO: вомзожно, это можно убрать, ведь таблица рефлексируется при каждой инициализации класса
         LAYERS_META = MetaData(schema="skolkovo_layers")
         LAYERS_META.reflect(bind=ENGINE, views=True, extend_existing=True, autoload_replace=True)
