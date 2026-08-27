@@ -108,7 +108,6 @@ def delete_user(user_id: str):
     return user.remove()
 
 
-
 @user_bp.route("/<user_id>/role", methods=["POST"])
 @admin_only
 def change_role(user_id: str):

@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-import sys
-sys.path.insert(1, 'd:/Angular/skolgis-backend')
-
 import os
 from pyproj import datadir
 
@@ -16,19 +13,22 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 import contextily as cx
+import contextily.tile as tile
 import geopandas as gpd
-from requests.exceptions import ReadTimeout
 from copy import deepcopy
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.oxml.ns import qn
 from io import BytesIO
 from typing import Tuple, List
-from src.config import MAIN_META
+from src.config import MAIN_META, Config
 from src.aliases import FieldAlias
 from src.presentation.utils import get_media_by_fid
 from src.sql_utils import read_postgis
 from src.utils import timeit
+
+cx.set_cache_dir("./cache/contextily")
+tile.USER_AGENT = f"SkolkovoGIS/1.0 (+{Config.FRONTEND_URL}; contact: {Config.SMTP_USER})"
 
 files_table = MAIN_META.tables['skolkovo_general.file_attachments'] 
 
@@ -183,7 +183,7 @@ class PresentationCreator():
 
         # ---------- СПУТНИКОВАЯ OPEN-SOURCE ПОДЛОЖКА ----------
         try:
-            cx.add_basemap(ax, source=cx.providers.OpenStreetMap.Mapnik, attribution=False, zorder=0)
+            cx.add_basemap(ax, source=cx.providers.OpenStreetMap.HOT, attribution=False, zorder=0)
         except:
             pass
 
